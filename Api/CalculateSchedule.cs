@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using FLLScheduler.Shared;
 using Microsoft.Azure.Functions.Worker;
@@ -50,7 +51,10 @@ public class CalculateSchedule
         ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.CycleTimeMinutes, nameof(config.RobotGame.CycleTimeMinutes));
         ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.BreakTimes.Length, nameof(config.RobotGame.BreakTimes));
 
-        var teams = config.Teams;
+        // map the incoming teams to the local working class
+        var teams = config.Teams
+            .Select(t => new WorkingTeam { Number = t.Number, Name = t.Name })
+            .ToArray();
 
         // first, assign judging times 
         var slot = config.Judging.StartTime;
@@ -80,7 +84,7 @@ public class CalculateSchedule
         var tablecounter = 0;
         slot = config.RobotGame.StartTime;
         var rnd = new Random();
-        for (;;)
+        for (; ; )
         {
             // skip teams that have a conflict with a team's judging time 
             var teamsthatcanplaythisslot = teams
@@ -172,4 +176,13 @@ public class CalculateSchedule
         _logger.LogMetric("TransactionTimeMS", sw.Elapsed.TotalMilliseconds);
         return response;
     }
+}
+
+class WorkingTeam
+{
+    public string Number { get; set; }
+    public string Name { get; set; }
+    public TimeOnly JudgingStart { get; set; }
+    public string JudgingPod { get; set; }
+    public RobotGameMatch[] Match { get; set; } = new RobotGameMatch[4];
 }

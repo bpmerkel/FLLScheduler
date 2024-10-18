@@ -4,9 +4,6 @@ namespace FLLScheduler.Shared;
 
 public class RequestModel
 {
-    /// <summary>
-    /// Gets or sets the list of areas.
-    /// </summary>
     [JsonPropertyName("event")]
     public EventConfig Event { get; set; }
     [JsonPropertyName("judging")]
