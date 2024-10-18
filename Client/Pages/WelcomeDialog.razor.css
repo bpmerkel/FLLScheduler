@@ -1,0 +1,8 @@
+﻿.indented {
+    padding-left: 40pt;
+}
+
+    .indented li::marker {
+        color: rgb(255, 168, 0);
+        font-weight: bold;
+    }

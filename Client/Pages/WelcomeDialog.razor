@@ -1,0 +1,49 @@
+﻿<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h4" Color="Color.Warning">FLL Judge Comments App</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body1" GutterBottom="true">
+            Although <i>FIRST</i> LEGO League judges have 10 minutes to deliberate
+            and record their assessments on the rubrics, judges often confess that 10 minutes
+            isn't enough time to generate comments.
+            This app is a solution for judges to view common comments, and use them as a template
+            to transcribe to their rubric form.
+        </MudText>
+        <MudText Typo="Typo.body1" GutterBottom="true">
+            To use the app, follow these steps:
+            <ol class="indented">
+                <li>Launch the application in a modern browser, such as Chrome or Edge (the browser needs to support WebAssembly--a capability to run web apps).</li>
+                <li>
+                    The app should show tabs for the judging areas of a <i>FIRST</i> LEGO League tournament--'Innovation Project' and 'Robot Design'.
+                    Choose the tab that represents the area of judging for which you need to write comments.
+                </li>
+                <li>
+                    A list of common comments is listed... scan the list to identify a comment you think resonates
+                    with the team you just observed.
+                </li>
+                <li>
+                    To help rapidly identify a comment, use the 'chips' at the top of the list to
+                    highlight comment terms. The chips are generated from frequent terms used in the comments.
+                </li>
+                <li>Optionally click (or press) on each comment you want to include... this will show a badge on the tab with the count of comments you identified.</li>
+                <li>Use the 'Show Selections' toggle to filter the lists to only the comments you selected.</li>
+                <li>Use the 'Clear All' button to reset your selections.</li>
+                <li>When it comes time to transcribe the comments to your rubric pages, simply reference the comments you selected.</li>
+            </ol>
+        </MudText>
+        <MudText Typo="Typo.body1" GutterBottom="true">
+            This FLL Judge Comment app was coded one weekend in November 2023 by Brady P. Merkel, and updated to the SUBMERGED judging format.
+            Please send Brady a note if you have feedback at brady@botnefl.org.
+            Brady is currently Head Referee of the Northeast Florida <i>FIRST</i> LEGO League Region; where he
+            also served in other <i>FIRST</i> LEGO League capacities since 2013, including Coach, Tournament Director,
+            Event Coordinator, Robot Design Judge, and Judge Advisor.
+        </MudText>
+        <MudText Typo="Typo.body1" GutterBottom="true">
+            Version @GetVersion()
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Warning" OnClick="Submit" Variant="Variant.Filled">Ok</MudButton>
+    </DialogActions>
+</MudDialog>

@@ -1,3 +1,6 @@
-# Blazor basic
+# FLL Judge Comments
 
-[Azure Static Web Apps](https://docs.microsoft.com/azure/static-web-apps/overview) allows you to easily build [Blazor](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor) apps in minutes. Use this repo with the [Blazor quickstart](https://docs.microsoft.com/azure/static-web-apps/getting-started?tabs=blazor) to build and customize a new static site.
+This is a _FIRST_ LEGO League Judge Tournament Scheduler application
+built on Blazor Client and hosted in Azure Static web sites.
+
+This application is currently deployed to [FLLScheduler](https://fllscheduler.merkel.net).

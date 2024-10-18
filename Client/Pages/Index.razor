@@ -1,7 +1,26 @@
 ﻿@page "/"
+@implements IBrowserViewportObserver
+@implements IAsyncDisposable
 
-<PageTitle>Index</PageTitle>
+<PageTitle>FLL Scheduler</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudLayout>
+    <MudMainContent Class="pt-0">
+        <MudAppBar Color="Color.Primary" Fixed="true" Dense="true">
+            @if (!IsSmallScreen)
+            {
+                <MudText Typo="Typo.h4">FLL Scheduler</MudText>
+                <MudSpacer />
+            }
 
-Welcome to your new app.
+            @if (!IsSmallScreen)
+            {
+                <MudSpacer />
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Help" Color="Color.Success" @onclick="OpenWelcomeDialog">Welcome</MudButton>
+            }
+        </MudAppBar>
+
+        <div style="height: 50px">
+        </div>
+    </MudMainContent>
+</MudLayout>
