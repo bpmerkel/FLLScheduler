@@ -2,7 +2,6 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using FLLScheduler.Shared;
 using Microsoft.Azure.Functions.Worker;
@@ -36,6 +35,7 @@ public class CalculateSchedule
     public async Task<HttpResponseData> RunAsync([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req)
     {
         var sw = Stopwatch.StartNew();
+        var rnd = new Random(0);    // always seed with same value for deterministic results
         var config = await req.ReadFromJsonAsync<RequestModel>();
 
         // validate the incoming request
@@ -54,6 +54,7 @@ public class CalculateSchedule
         // map the incoming teams to the local working class
         var teams = config.Teams
             .Select(t => new WorkingTeam { Number = t.Number, Name = t.Name })
+            .OrderBy(t => rnd.Next())
             .ToArray();
 
         // first, assign judging times 
@@ -62,15 +63,14 @@ public class CalculateSchedule
         foreach (var team in teams)
         {
             team.JudgingStart = slot;
-            //team.JudgingEnd = slot.Add(state.judging.cycletime); 
             team.JudgingPod = config.Judging.Pods[podcounter];
-            podcounter = (podcounter + 1) % config.Judging.Pods.Length;
 
             // when podcounter = 0 it's time for a new time slot 
+            podcounter = (podcounter + 1) % config.Judging.Pods.Length;
             if (podcounter == 0)
             {
                 slot = slot.AddMinutes(config.Judging.CycleTimeMinutes);
-                // skip to afternoon if next slot overlaps into lunch 
+                // skip to afternoon if next slot overlaps lunch 
                 var end = slot.AddMinutes(config.Judging.CycleTimeMinutes);
                 if (end.IsBetween(config.Event.LunchStartTime.Add(TimeSpan.FromSeconds(1)), config.Event.AfternoonStartTime))
                 {
@@ -83,8 +83,7 @@ public class CalculateSchedule
         // but do this timeslot by timeslot 
         var tablecounter = 0;
         slot = config.RobotGame.StartTime;
-        var rnd = new Random();
-        for (; ; )
+        for (;;)
         {
             // skip teams that have a conflict with a team's judging time 
             var teamsthatcanplaythisslot = teams
@@ -180,9 +179,13 @@ public class CalculateSchedule
 
 class WorkingTeam
 {
-    public string Number { get; set; }
-    public string Name { get; set; }
+    public string Number { get; init; }
+    public string Name { get; init; }
     public TimeOnly JudgingStart { get; set; }
     public string JudgingPod { get; set; }
-    public RobotGameMatch[] Match { get; set; } = new RobotGameMatch[4];
+    public RobotGameMatch[] Match { get; init; }
+    public WorkingTeam()
+    {
+        Match = [new RobotGameMatch(), new RobotGameMatch(), new RobotGameMatch(), new RobotGameMatch()];
+    }
 }
