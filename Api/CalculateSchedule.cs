@@ -3,10 +3,10 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using FLLScheduler.Shared;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using FLLScheduler.Shared;
 
 namespace ApiIsolated;
 
@@ -16,27 +16,23 @@ namespace ApiIsolated;
 /// <remarks>
 /// Initializes a new instance of the <see cref="HttpTrigger"/> class.
 /// </remarks>
-/// <param name="loggerFactory">The logger factory.</param>
-public class CalculateSchedule
+public class CalculateScheduleApi
 {
-    private readonly ILogger _logger;
-
-    public CalculateSchedule(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger<CalculateSchedule>();
-    }
-
     /// <summary>
     /// Runs the HTTP trigger.
     /// </summary>
     /// <param name="req">The HTTP request data.</param>
     /// <returns>The HTTP response data.</returns>
     [Function(nameof(CalculateSchedule))]
-    public HttpResponseData Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req)
+    public static async Task<HttpResponseData> CalculateSchedule([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req, FunctionContext executionContext)
     {
         var sw = Stopwatch.StartNew();
         var rnd = new Random(0);    // always seed with same value for deterministic results
-        var config = req.ReadFromJsonAsync<RequestModel>().GetAwaiter().GetResult();
+
+        var logger = executionContext.GetLogger("HttpTrigger1");
+        logger.LogInformation("CalculateSchedule function processed a request.");
+
+        var config = await req.ReadFromJsonAsync<RequestModel>(); //.GetAwaiter().GetResult();
 
         // validate the incoming request
         ArgumentNullException.ThrowIfNull(config, nameof(config));
@@ -48,8 +44,9 @@ public class CalculateSchedule
         ArgumentNullException.ThrowIfNull(config.Event, nameof(config.Event));
         ArgumentOutOfRangeException.ThrowIfZero(config.Judging.Pods.Length, nameof(config.Judging.Pods));
         ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.Tables.Length, nameof(config.RobotGame.Tables));
-        ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.CycleTimeMinutes, nameof(config.RobotGame.CycleTimeMinutes));
-        ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.BreakTimes.Length, nameof(config.RobotGame.BreakTimes));
+        //ArgumentOutOfRangeException.ThrowIfZero(config.Judging.CycleTimeMinutes, nameof(config.Judging.CycleTimeMinutes));
+        //ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.CycleTimeMinutes, nameof(config.RobotGame.CycleTimeMinutes));
+        //ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.BreakTimes.Length, nameof(config.RobotGame.BreakTimes));
 
         // map the incoming teams to the local working class
         var teams = config.Teams
@@ -85,6 +82,12 @@ public class CalculateSchedule
         slot = config.RobotGame.StartTime;
         for (;;)
         {
+            // break when all teams are all scheduled 
+            if (teams.All(team => team.Match.All(match => match.Table != null)))
+            {
+                break;
+            }
+
             // skip teams that have a conflict with a team's judging time 
             var teamsthatcanplaythisslot = teams
                 .Where(team => team.Match.Any(match => match.Table == null))
@@ -102,15 +105,10 @@ public class CalculateSchedule
                     var end = team.Match.Max(m => m.Start.AddMinutes(config.RobotGame.CycleTimeMinutes)).AddMinutes(config.RobotGame.BufferMinutes);
                     return !slot.IsBetween(start, end);
                 })
-                .OrderBy(team => team.Match.Select((m, i) => new { m, i }).First(e => e.m.Table == null).i)
-                .ThenBy(team => rnd.Next())
+                //.OrderBy(team => team.Match.Select((m, i) => new { m, i }).First(e => e.m.Table == null).i)
+                //.ThenBy(team => rnd.Next())
+                .OrderBy(team => rnd.Next())
                 .ToArray();
-
-            // break when all teams are all scheduled 
-            if (teams.All(team => team.Match.All(match => match.Table != null)))
-            {
-                break;
-            }
 
             // fill all tables for this slot 
             foreach (var team in teamsthatcanplaythisslot)
@@ -118,9 +116,7 @@ public class CalculateSchedule
                 // for this team, get the match of the first null table 
                 var match = team.Match.Select((m, i) => new { m, i }).First(e => e.m.Table == null).i;
                 team.Match[match].Start = slot;
-                //team.Match[match].RunEnd = slot.Add(state.robotgame.cycletime); 
                 team.Match[match].Table = config.RobotGame.Tables[tablecounter];
-
                 tablecounter = (tablecounter + 1) % config.RobotGame.Tables.Length;
                 // when tablecounter = 0 it's time for a new time slot 
                 if (tablecounter == 0)
@@ -152,9 +148,9 @@ public class CalculateSchedule
         }
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.WriteAsJsonAsync(new ResponseModel
+        await response.WriteAsJsonAsync(new ResponseModel
         {
-            Teams = teams
+            Schedule = teams
                 .Select(team => new TeamSchedule
                 {
                     Number = team.Number,
@@ -171,8 +167,8 @@ public class CalculateSchedule
                     Match3Table = team.Match[3].Table
                 })
                 .ToArray()
-        }).GetAwaiter().GetResult();
-        _logger.LogMetric("TransactionTimeMS", sw.Elapsed.TotalMilliseconds);
+        });
+        logger.LogMetric("TransactionTimeMS", sw.Elapsed.TotalMilliseconds);
         return response;
     }
 }
