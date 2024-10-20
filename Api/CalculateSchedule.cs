@@ -32,11 +32,11 @@ public class CalculateSchedule
     /// <param name="req">The HTTP request data.</param>
     /// <returns>The HTTP response data.</returns>
     [Function(nameof(CalculateSchedule))]
-    public async Task<HttpResponseData> RunAsync([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req)
+    public HttpResponseData Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req)
     {
         var sw = Stopwatch.StartNew();
         var rnd = new Random(0);    // always seed with same value for deterministic results
-        var config = await req.ReadFromJsonAsync<RequestModel>();
+        var config = req.ReadFromJsonAsync<RequestModel>().GetAwaiter().GetResult();
 
         // validate the incoming request
         ArgumentNullException.ThrowIfNull(config, nameof(config));
@@ -152,7 +152,7 @@ public class CalculateSchedule
         }
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(new ResponseModel
+        response.WriteAsJsonAsync(new ResponseModel
         {
             Teams = teams
                 .Select(team => new TeamSchedule
@@ -171,7 +171,7 @@ public class CalculateSchedule
                     Match3Table = team.Match[3].Table
                 })
                 .ToArray()
-        });
+        }).GetAwaiter().GetResult();
         _logger.LogMetric("TransactionTimeMS", sw.Elapsed.TotalMilliseconds);
         return response;
     }
@@ -183,9 +183,5 @@ class WorkingTeam
     public string Name { get; init; }
     public TimeOnly JudgingStart { get; set; }
     public string JudgingPod { get; set; }
-    public RobotGameMatch[] Match { get; init; }
-    public WorkingTeam()
-    {
-        Match = [new RobotGameMatch(), new RobotGameMatch(), new RobotGameMatch(), new RobotGameMatch()];
-    }
+    public RobotGameMatch[] Match { get; init; } = [new RobotGameMatch(), new RobotGameMatch(), new RobotGameMatch(), new RobotGameMatch()];
 }
