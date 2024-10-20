@@ -4,6 +4,9 @@ namespace FLLScheduler.Shared;
 
 public class RequestModel
 {
+    [JsonPropertyName("name")]
+    public string Name { get; set; }
+
     [JsonPropertyName("event")]
     public EventConfig Event { get; set; }
     [JsonPropertyName("judging")]

@@ -32,7 +32,7 @@ public class CalculateScheduleApi
         var logger = executionContext.GetLogger("HttpTrigger1");
         logger.LogInformation("CalculateSchedule function processed a request.");
 
-        var config = await req.ReadFromJsonAsync<RequestModel>(); //.GetAwaiter().GetResult();
+        var config = await req.ReadFromJsonAsync<RequestModel>();
 
         // validate the incoming request
         ArgumentNullException.ThrowIfNull(config, nameof(config));
@@ -44,11 +44,29 @@ public class CalculateScheduleApi
         ArgumentNullException.ThrowIfNull(config.Event, nameof(config.Event));
         ArgumentOutOfRangeException.ThrowIfZero(config.Judging.Pods.Length, nameof(config.Judging.Pods));
         ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.Tables.Length, nameof(config.RobotGame.Tables));
+        // Ensure even number of tables specfified
+        ArgumentOutOfRangeException.ThrowIfNotEqual(0, config.RobotGame.Tables.Length % 2, nameof(config.RobotGame.Tables));
+        // Ensure number of pods can judge the team count
+        ArgumentOutOfRangeException.ThrowIfNotEqual(true, config.Judging.Pods.Length >= config.Teams.Length / 6d, nameof(config.Teams));
+
         //ArgumentOutOfRangeException.ThrowIfZero(config.Judging.CycleTimeMinutes, nameof(config.Judging.CycleTimeMinutes));
         //ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.CycleTimeMinutes, nameof(config.RobotGame.CycleTimeMinutes));
         //ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.BreakTimes.Length, nameof(config.RobotGame.BreakTimes));
 
-        // map the incoming teams to the local working class
+        var responseModel = ProcessRequest(config);
+
+        var response = req.CreateResponse(HttpStatusCode.OK);
+        await response.WriteAsJsonAsync(responseModel);
+        logger.LogMetric("TransactionTimeMS", sw.Elapsed.TotalMilliseconds);
+        return response;
+    }
+
+    private static ResponseModel ProcessRequest(RequestModel config)
+    {
+        // always seed with same value for deterministic results
+        var rnd = new Random(0);
+
+        // map the incoming teams to the local working class, and randomize
         var teams = config.Teams
             .Select(t => new WorkingTeam { Number = t.Number, Name = t.Name })
             .OrderBy(t => rnd.Next())
@@ -76,47 +94,45 @@ public class CalculateScheduleApi
             }
         }
 
-        // next, assign robot game run times 
-        // but do this timeslot by timeslot 
+        // next, assign robot game run times timeslot by timeslot 
         var tablecounter = 0;
         slot = config.RobotGame.StartTime;
-        for (;;)
-        {
-            // break when all teams are all scheduled 
-            if (teams.All(team => team.Match.All(match => match.Table != null)))
-            {
-                break;
-            }
 
-            // skip teams that have a conflict with a team's judging time 
+        // assign times until all teams are all scheduled
+        while (!teams.All(team => team.Match.All(match => match.Assigned)))
+        {
+            // skip teams that have a conflict with a team's judging time
             var teamsthatcanplaythisslot = teams
-                .Where(team => team.Match.Any(match => match.Table == null))
+                .OrderBy(team => rnd.Next())
+                .Where(team => team.Match.Any(match => !match.Assigned))
                 .Where(team =>
                 {
-                    // skip judging + buffer 
-                    var start = team.JudgingStart.AddMinutes(-config.Judging.BufferMinutes).AddMinutes(-config.RobotGame.BufferMinutes);
+                    // skip judging + buffer
+                    var maxbuffer = Math.Max(config.Judging.BufferMinutes, config.RobotGame.BufferMinutes);
+                    var start = team.JudgingStart.AddMinutes(-maxbuffer);
                     var end = team.JudgingStart.AddMinutes(config.Judging.CycleTimeMinutes).AddMinutes(config.Judging.BufferMinutes);
                     return !slot.IsBetween(start, end);
                 })
                 .Where(team =>
                 {
-                    // skip teams with times already booked 
-                    var start = team.Match.Min(m => m.Start).AddMinutes(-config.RobotGame.BufferMinutes);
+                    // skip teams with time slots already booked + buffer
+                    var start = team.Match.Min(m => m.Start);
                     var end = team.Match.Max(m => m.Start.AddMinutes(config.RobotGame.CycleTimeMinutes)).AddMinutes(config.RobotGame.BufferMinutes);
                     return !slot.IsBetween(start, end);
                 })
-                //.OrderBy(team => team.Match.Select((m, i) => new { m, i }).First(e => e.m.Table == null).i)
-                //.ThenBy(team => rnd.Next())
-                .OrderBy(team => rnd.Next())
+                .OrderBy(team => team.Match.Select((m, i) => new { m, i }).First(e => !e.m.Assigned).i)
                 .ToArray();
 
             // fill all tables for this slot 
             foreach (var team in teamsthatcanplaythisslot)
             {
-                // for this team, get the match of the first null table 
-                var match = team.Match.Select((m, i) => new { m, i }).First(e => e.m.Table == null).i;
-                team.Match[match].Start = slot;
-                team.Match[match].Table = config.RobotGame.Tables[tablecounter];
+                // for this team, get the match index of the first available match 
+                var match = team.Match.First(m => !m.Assigned);
+                match.Start = slot;
+                match.Table = config.RobotGame.Tables[tablecounter];
+                match.Assigned = true;
+
+                // rotate the table counter to the next table
                 tablecounter = (tablecounter + 1) % config.RobotGame.Tables.Length;
                 // when tablecounter = 0 it's time for a new time slot 
                 if (tablecounter == 0)
@@ -125,31 +141,32 @@ public class CalculateScheduleApi
                 }
             }
 
+            // increment to the next timeslot
             slot = slot.AddMinutes(config.RobotGame.CycleTimeMinutes);
 
             // skip to afternoon if next slot overlaps into lunch 
             var end = slot.AddMinutes(config.RobotGame.CycleTimeMinutes);
-            if (end.IsBetween(config.Event.LunchStartTime.Add(TimeSpan.FromSeconds(1)), config.Event.AfternoonStartTime))
+            if (end.IsBetween(config.Event.LunchStartTime.AddMinutes(1), config.Event.AfternoonStartTime))
             {
                 slot = config.Event.AfternoonStartTime;
             }
 
             // skip break times for break durations 
-            foreach (var @break in config.RobotGame.BreakTimes)
+            foreach (var breaktime in config.RobotGame.BreakTimes)
             {
                 end = slot.AddMinutes(config.RobotGame.CycleTimeMinutes);
-                if (slot.IsBetween(@break, @break.AddMinutes(config.RobotGame.BreakDurationMinutes))
-                    || end.IsBetween(@break, @break.AddMinutes(config.RobotGame.BreakDurationMinutes)))
+                if (slot.IsBetween(breaktime, breaktime.AddMinutes(config.RobotGame.BreakDurationMinutes))
+                    || end.IsBetween(breaktime.AddMinutes(1), breaktime.AddMinutes(config.RobotGame.BreakDurationMinutes)))
                 {
-                    slot = @break.AddMinutes(config.RobotGame.BreakDurationMinutes);
+                    slot = breaktime.AddMinutes(config.RobotGame.BreakDurationMinutes);
                     break;
                 }
             }
         }
 
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(new ResponseModel
+        return new ResponseModel
         {
+            Request = config,
             Schedule = teams
                 .Select(team => new TeamSchedule
                 {
@@ -167,9 +184,7 @@ public class CalculateScheduleApi
                     Match3Table = team.Match[3].Table
                 })
                 .ToArray()
-        });
-        logger.LogMetric("TransactionTimeMS", sw.Elapsed.TotalMilliseconds);
-        return response;
+        };
     }
 }
 
