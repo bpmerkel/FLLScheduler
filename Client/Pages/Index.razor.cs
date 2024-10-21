@@ -44,7 +44,6 @@ public partial class Index
     private string TableNames { get; set; }
     private string Teams { get; set; }
     private MudDataGrid<TeamSchedule> dataGrid;
-    private MudStack gridstack;
 
     protected override async void OnAfterRender(bool firstRender)
     {
