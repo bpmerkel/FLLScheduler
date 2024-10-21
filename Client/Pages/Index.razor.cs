@@ -154,7 +154,6 @@ public partial class Index
 
     private void ShowResults(ResponseModel response)
     {
-        return;
         //response.Request.Name,
         //Generated = response.GeneratedUtc.ToLocalTime(),
 
@@ -196,14 +195,14 @@ public partial class Index
                     s.Name,
                     Match = "3"
                 }))
-            .Select(e => new
+            .Select(e => new QueuerEntry
             {
                 QueueTime = e.Time.AddMinutes(-5),
-                e.Number,
-                e.Name,
+                Number = e.Number,
+                Name = e.Name,
                 MatchTime = e.Time,
-                e.Match,
-                e.Table
+                Match = e.Match,
+                Table = e.Table
             })
             .OrderBy(e => e.QueueTime)
             // order tables in the order given in the request
@@ -234,11 +233,12 @@ public partial class Index
             var podschedule = master
                 .Where(s => s.JudgingPod == pod)
                 .OrderBy(s => s.JudgingStart)
-                .Select(s => new
+                .Select(s => new PodEntry
                 {
-                    s.JudgingStart,
-                    s.Number,
-                    s.Name
+                    Pod = pod,
+                    JudgingStart = s.JudgingStart,
+                    Number = s.Number,
+                    Name = s.Name
                 })
                 .ToArray();
         }
@@ -247,16 +247,48 @@ public partial class Index
         {
             var gamesattable = games
                 .Where(g => g.Table == table)
-                .Select(g => new
+                .Select(g => new TableEntry
                 {
-                    g.MatchTime,
-                    g.Number,
-                    g.Name,
-                    g.Match
+                    Table = table,
+                    MatchTime = g.MatchTime,
+                    Number = g.Number,
+                    Name = g.Name,
+                    Match = g.Match
                 })
                 .OrderBy(g => g.MatchTime)
                 .ToArray();
         }
+    }
+
+    public interface IGridToShow
+    {
+    }
+
+    public class QueuerEntry : IGridToShow
+    {
+        public TimeOnly QueueTime { get; set; }
+        public string Number { get; set; }
+        public string Name { get; set; }
+        public TimeOnly MatchTime { get; set; }
+        public string Match { get; set; }
+        public string Table { get; set; }
+    }
+
+    public class PodEntry : IGridToShow
+    {
+        public string Pod { get; set; }
+        public TimeOnly JudgingStart { get; set; }
+        public string Number { get; set; }
+        public string Name { get; set; }
+    }
+
+    public class TableEntry : IGridToShow
+    {
+        public string Table { get; set; }
+        public TimeOnly MatchTime { get; set; }
+        public string Number { get; set; }
+        public string Name { get; set; }
+        public string Match { get; set; }
     }
 
     private async Task<IEnumerable<RequestModel>> IdentifyProfiles(string value, CancellationToken token)
