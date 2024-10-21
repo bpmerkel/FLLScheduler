@@ -155,6 +155,7 @@ public partial class Index
 
     private void ShowResults(ResponseModel response)
     {
+        return;
         //response.Request.Name,
         //Generated = response.GeneratedUtc.ToLocalTime(),
 
@@ -209,16 +210,6 @@ public partial class Index
             // order tables in the order given in the request
             .ThenBy(e => response.Request.RobotGame.Tables.Select((t, i) => (t, i)).First(ee => ee.t == e.Table).i)
             .ToArray();
-
-        var gamesgrid = new MudDataGrid<TeamSchedule>
-        {
-            Dense = true,
-            Filterable = false,
-            SortMode = SortMode.Multiple
-        };
-        gamesgrid.Columns.Add<TeamSchedule>(c => c.QueueTime).Label("Queue Time").Sortable(true);
-
-        gridstack.ChildContent = gamesgrid;
 
         var combined = games
             .GroupBy(game => game.MatchTime)
