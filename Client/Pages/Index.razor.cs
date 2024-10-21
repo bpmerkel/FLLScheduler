@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Dynamic;
 
 namespace FLLScheduler.Pages;
 
@@ -42,8 +43,8 @@ public partial class Index
     private string Breaks { get; set; }
     private string TableNames { get; set; }
     private string Teams { get; set; }
-    //private TeamSchedule[] Schedule { get; set; }
     private MudDataGrid<TeamSchedule> dataGrid;
+    private MudStack gridstack;
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -100,7 +101,7 @@ public partial class Index
         profile.Event.CoachesMeetingTime = TimeOnly.FromTimeSpan(CoachesMeetingTime.Value);
         profile.Event.OpeningCeremonyTime = TimeOnly.FromTimeSpan(OpeningCeremonyTime.Value);
         profile.Event.LunchStartTime = TimeOnly.FromTimeSpan(LunchStartTime.Value);
-        profile.Event.AfternoonStartTime =  TimeOnly.FromTimeSpan(LunchEndTime.Value);
+        profile.Event.AfternoonStartTime = TimeOnly.FromTimeSpan(LunchEndTime.Value);
         profile.Judging.StartTime = TimeOnly.FromTimeSpan(JudgingStartTime.Value);
         profile.RobotGame.StartTime = TimeOnly.FromTimeSpan(RobotGamesStartTime.Value);
         profile.Judging.CycleTimeMinutes = CycleTimeMinutes;
@@ -138,6 +139,7 @@ public partial class Index
         if (response.IsSuccessStatusCode)
         {
             var responseModel = await response.Content.ReadFromJsonAsync<ResponseModel>();
+            ShowResults(responseModel);
             return new GridData<TeamSchedule>
             {
                 TotalItems = responseModel.Schedule.Length,
@@ -149,6 +151,122 @@ public partial class Index
             TotalItems = 0,
             Items = []
         };
+    }
+
+    private void ShowResults(ResponseModel response)
+    {
+        //response.Request.Name,
+        //Generated = response.GeneratedUtc.ToLocalTime(),
+
+        var master = response.Schedule;
+
+        var games = master
+            .Select(s => new
+            {
+                Time = s.PracticeStart,
+                Table = s.PracticeTable,
+                s.Number,
+                s.Name,
+                Match = "P"
+            })
+            .Union(master
+                .Select(s => new
+                {
+                    Time = s.Match1Start,
+                    Table = s.Match1Table,
+                    s.Number,
+                    s.Name,
+                    Match = "1"
+                }))
+            .Union(master
+                .Select(s => new
+                {
+                    Time = s.Match2Start,
+                    Table = s.Match2Table,
+                    s.Number,
+                    s.Name,
+                    Match = "2"
+                }))
+            .Union(master
+                .Select(s => new
+                {
+                    Time = s.Match3Start,
+                    Table = s.Match3Table,
+                    s.Number,
+                    s.Name,
+                    Match = "3"
+                }))
+            .Select(e => new
+            {
+                QueueTime = e.Time.AddMinutes(-5),
+                e.Number,
+                e.Name,
+                MatchTime = e.Time,
+                e.Match,
+                e.Table
+            })
+            .OrderBy(e => e.QueueTime)
+            // order tables in the order given in the request
+            .ThenBy(e => response.Request.RobotGame.Tables.Select((t, i) => (t, i)).First(ee => ee.t == e.Table).i)
+            .ToArray();
+
+        var gamesgrid = new MudDataGrid<TeamSchedule>
+        {
+            Dense = true,
+            Filterable = false,
+            SortMode = SortMode.Multiple
+        };
+        gamesgrid.Columns.Add<TeamSchedule>(c => c.QueueTime).Label("Queue Time").Sortable(true);
+
+        gridstack.ChildContent = gamesgrid;
+
+        var combined = games
+            .GroupBy(game => game.MatchTime)
+            .Select(g => new { Time = g.Key, Games = g.ToArray() })
+            .Select(e =>
+            {
+                var ex = new ExpandoObject();
+                ex.TryAdd("Time", e.Time);
+
+                foreach (var table in response.Request.RobotGame.Tables)
+                {
+                    var assignment = e.Games.FirstOrDefault(g => g.Table == table);
+                    ex.TryAdd(table, assignment == null
+                        ? "-"
+                        : $"{assignment.Number} - {assignment.Name} ({assignment.Match})");
+                }
+                return ex;
+            })
+            .ToArray();
+
+        foreach (var pod in response.Request.Judging.Pods)
+        {
+            var podschedule = master
+                .Where(s => s.JudgingPod == pod)
+                .OrderBy(s => s.JudgingStart)
+                .Select(s => new
+                {
+                    s.JudgingStart,
+                    s.Number,
+                    s.Name
+                })
+                .ToArray();
+        }
+
+        foreach (var table in response.Request.RobotGame.Tables)
+        {
+            var gamesattable = games
+                .Where(g => g.Table == table)
+                .Select(g => new
+                {
+                    g.MatchTime,
+                    g.Number,
+                    g.Name,
+                    g.Match
+                })
+                .OrderBy(g => g.MatchTime)
+                .ToArray();
+        }
     }
 
     private async Task<IEnumerable<RequestModel>> IdentifyProfiles(string value, CancellationToken token)
