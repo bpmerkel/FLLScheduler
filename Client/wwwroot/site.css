@@ -17,12 +17,12 @@
     height: 50px;
 }
 
-.team-table, .queuer-table, .game-table, .judging-table, .game-table-table {
+.markdown-table {
     border: 1px solid #007;
     margin-left: 2em;
     font-family: Roboto, Helvetica, Arial, "sans-serif"
 }
-    .team-table th, .queuer-table th, .game-table th, .judging-table th, .game-table-table th {
+    .markdown-table th {
         padding-left: 1em;
         padding-right: 1em;
         color: #fff;
@@ -30,12 +30,12 @@
         border-bottom: 2px solid #002;
         white-space: nowrap;
     }
-    .team-table td, .queuer-table td, .game-table td, .judging-table td, .game-table-table td {
+    .markdown-table td {
         color: #fff;
         padding-left: 1em;
         padding-right: 1em;
         white-space: nowrap;
     }
-    .team-table tbody tr:nth-child(odd), .queuer-table tbody tr:nth-child(odd), .game-table tbody tr:nth-child(odd), .judging-table tbody tr:nth-child(odd), .game-table-table tbody tr:nth-child(odd) {
+    .markdown-table tbody tr:nth-child(odd) {
         background-color: #004;
     }

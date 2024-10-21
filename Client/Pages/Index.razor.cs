@@ -43,7 +43,7 @@ public partial class Index
     private string TableNames { get; set; }
     private string Teams { get; set; }
     private MarkupString GridsToShow { get; set; }
-    private MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+    private readonly MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -154,16 +154,98 @@ public partial class Index
         md.AppendLine();
 
         md.AppendLine("### Team Schedule{.mud-typography .mud-typography-h6}");
-        md.AppendLine("{#team-table .team-table}");
+        md.AppendLine("{#team-table .markdown-table}");
         md.AppendLine("|Team|Name|Judging|Pod|Practice|Practice Table|Match 1|Match 1 Table|Match 2|Match 2 Table|Match 3|Match 3 Table|");
         md.AppendLine("|:--:|:---|------:|:--|-------:|:------------:|------:|:-----------:|------:|:-----------:|------:|:-----------:|");
-        foreach (var s in master)
+        foreach (var s in master.OrderBy(s => s.Number))
         {
             md.Append($"|{s.Number}|{s.Name}|{s.JudgingStart:h\\:mm tt}|{s.JudgingPod}");
             md.Append($"|{s.PracticeStart:h\\:mm tt}|{s.PracticeTable}");
             md.Append($"|{s.Match1Start:h\\:mm tt}|{s.Match1Table}");
             md.Append($"|{s.Match2Start:h\\:mm tt}|{s.Match2Table}");
             md.AppendLine($"|{s.Match3Start:h\\:mm tt}|{s.Match3Table}|");
+        }
+        md.AppendLine();
+
+        foreach (var pod in response.Request.Judging.Pods)
+        {
+            var podschedule = master
+                .Where(s => s.JudgingPod == pod)
+                .OrderBy(s => s.JudgingStart)
+                .Select(s => new
+                {
+                    s.JudgingStart,
+                    s.Number,
+                    s.Name
+                })
+                .ToArray();
+
+            md.AppendLine();
+            md.AppendLine($"### {pod} Judging Schedule{{.mud-typography .mud-typography-h6}}");
+            md.AppendLine("{#judging-table .markdown-table}");
+            md.AppendLine("|Time|Team|Name|");
+            md.AppendLine("|---:|:----:|:---|");
+            foreach (var s in podschedule)
+            {
+                md.AppendLine($"|{s.JudgingStart:h\\:mm tt}|{s.Number}|{s.Name}|");
+            }
+            md.AppendLine();
+        }
+
+        var judgingqueue = master
+            .Select(s => new
+            {
+                QueueTime = s.JudgingStart.AddMinutes(-5),
+                s.JudgingStart,
+                s.JudgingPod,
+                s.Number,
+                s.Name
+            })
+            .OrderBy(s => s.QueueTime)
+            .ThenBy(s => s.JudgingPod)
+            .ToArray();
+
+        md.AppendLine();
+        md.AppendLine("### Judging Queuing Schedule{.mud-typography .mud-typography-h6}");
+        md.AppendLine("{#judging-queuer-table .markdown-table}");
+        md.AppendLine("|Queue Time|Team|Name|Judging|Pod|");
+        md.AppendLine("|---------:|:--:|:---|------:|:--|");
+        foreach (var qe in judgingqueue)
+        {
+            md.AppendLine($"|{qe.QueueTime:h\\:mm tt}|{qe.Number}|{qe.Name}|{qe.JudgingStart:h\\:mm tt}|{qe.JudgingPod}|");
+        }
+        md.AppendLine();
+
+        var judging = master
+            .GroupBy(t => t.JudgingStart)
+            .Select(g => new { Time = g.Key, Sessions = g.ToArray() })
+            .Select(e =>
+            {
+                var schedule = new { e.Time, Columns = new List<(string pod, string team)>() };
+                foreach (var pod in response.Request.Judging.Pods)
+                {
+                    var assignment = e.Sessions.FirstOrDefault(g => g.JudgingPod == pod);
+                    schedule.Columns.Add((pod, team: assignment == null
+                        ? "-"
+                        : $"{assignment.Number} - {assignment.Name}"));
+                }
+                return schedule;
+            })
+            .ToArray();
+
+        md.AppendLine();
+        md.AppendLine("### Judging Schedule{.mud-typography .mud-typography-h6}");
+        md.AppendLine("{#pod-table .markdown-table}");
+        md.AppendLine("|Time|" + string.Join("|", response.Request.Judging.Pods) + "|");
+        md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", response.Request.Judging.Pods.Length)));
+        foreach (var s in judging)
+        {
+            md.Append($"|{s.Time:h\\:mm tt}");
+            foreach (var (pod, team) in s.Columns)
+            {
+                md.Append($"|{team}");
+            }
+            md.AppendLine("|");
         }
         md.AppendLine();
 
@@ -219,7 +301,7 @@ public partial class Index
 
         md.AppendLine();
         md.AppendLine("### Robot Game Queuing Schedule{.mud-typography .mud-typography-h6}");
-        md.AppendLine("{#queuer-table .queuer-table}");
+        md.AppendLine("{#queuer-table .markdown-table}");
         md.AppendLine("|Queue Time|Team|Name|Match Time|Match|Table|");
         md.AppendLine("|---------:|:--:|:---|---------:|:---:|:----|");
         foreach (var qe in games)
@@ -247,7 +329,7 @@ public partial class Index
 
         md.AppendLine();
         md.AppendLine("### Robot Game Schedule{.mud-typography .mud-typography-h6}");
-        md.AppendLine("{#game-table .game-table}");
+        md.AppendLine("{#game-table .markdown-table}");
         md.AppendLine("|Time|" + string.Join("|", response.Request.RobotGame.Tables) + "|");
         md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", response.Request.RobotGame.Tables.Length)));
         foreach (var s in combined)
@@ -260,31 +342,6 @@ public partial class Index
             md.AppendLine("|");
         }
         md.AppendLine();
-
-        foreach (var pod in response.Request.Judging.Pods)
-        {
-            var podschedule = master
-                .Where(s => s.JudgingPod == pod)
-                .OrderBy(s => s.JudgingStart)
-                .Select(s => new
-                {
-                    s.JudgingStart,
-                    s.Number,
-                    s.Name
-                })
-                .ToArray();
-
-            md.AppendLine();
-            md.AppendLine($"### {pod} Judging Schedule{{.mud-typography .mud-typography-h6}}");
-            md.AppendLine("{#judging-table .judging-table}");
-            md.AppendLine("|Time|Team|Name|");
-            md.AppendLine("|---:|:----:|:---|");
-            foreach (var s in podschedule)
-            {
-                md.AppendLine($"|{s.JudgingStart:h\\:mm tt}|{s.Number}|{s.Name}|");
-            }
-            md.AppendLine();
-        }
 
         foreach (var table in response.Request.RobotGame.Tables)
         {
@@ -301,7 +358,7 @@ public partial class Index
                 .ToArray();
             md.AppendLine();
             md.AppendLine($"### {table} Robot Game Table Schedule{{.mud-typography .mud-typography-h6}}");
-            md.AppendLine("{#game-table-table .game-table-table}");
+            md.AppendLine("{#game-table-table .markdown-table}");
             md.AppendLine("|Match Time|Team|Name|Match|");
             md.AppendLine("|---------:|:----:|:---|:---:|");
             foreach (var s in gamesattable)
