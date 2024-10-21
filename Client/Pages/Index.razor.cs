@@ -48,7 +48,10 @@ public partial class Index
 
     protected override async void OnAfterRender(bool firstRender)
     {
-        await DoProfileSelected(Profiles[0]);
+        if (firstRender)
+        {
+            await DoProfileSelected(Profiles[0]);
+        }
     }
 
     private async Task DoProfileSelected(RequestModel value)
