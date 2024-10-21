@@ -20,15 +20,18 @@
 .team-table, .queuer-table, .game-table, .judging-table, .game-table-table {
     border: 1px solid #004;
     margin-left: 2em;
+    font-family: Roboto, Helvetica, Arial, "sans-serif"
 }
     .team-table th, .queuer-table th, .game-table th, .judging-table th, .game-table-table th {
         padding-left: 1em;
         padding-right: 1em;
+        color: #fff;
         background-color: #006;
         border-bottom: 2px solid #002;
         white-space: nowrap;
     }
     .team-table td, .queuer-table td, .game-table td, .judging-table td, .game-table-table td {
+        color: #fff;
         padding-left: 1em;
         padding-right: 1em;
         white-space: nowrap;

@@ -148,11 +148,11 @@ public partial class Index
         var master = response.Schedule;
 
         var md = new StringBuilder();
-        md.AppendLine($"# {response.Request.Name}{{#name .profile-name}}");
-        md.AppendLine($"## Generated {response.GeneratedUtc.ToLocalTime():dddd MMM-dd h\\:mm tt}{{#time .profile-time}}");
+        md.AppendLine($"# {response.Request.Name}{{#name .profile-name .mud-typography .mud-typography-h1}}");
+        md.AppendLine($"## Generated {response.GeneratedUtc.ToLocalTime():dddd MMM-dd h\\:mm tt}{{#time .profile-time .mud-typography .mud-typography-h2}}");
         md.AppendLine();
 
-        md.AppendLine($"### Team Schedule");
+        md.AppendLine("### Team Schedule{.mud-typography .mud-typography-h3}");
         md.AppendLine("{#team-table .team-table}");
         md.AppendLine("|Team|Name|Judging|Pod|Practice|Practice Table|Match 1|Match 1 Table|Match 2|Match 2 Table|Match 3|Match 3 Table|");
         md.AppendLine("|:--:|:---|------:|:--|-------:|:------------:|------:|:-----------:|------:|:-----------:|------:|:-----------:|");
@@ -217,7 +217,7 @@ public partial class Index
             .ToArray();
 
         md.AppendLine();
-        md.AppendLine("### Queuing Schedule");
+        md.AppendLine("### Queuing Schedule{.mud-typography .mud-typography-h3}");
         md.AppendLine("{#queuer-table .queuer-table}");
         md.AppendLine("|Queue Time|Team|Name|Match Time|Match|Table|");
         md.AppendLine("|---------:|:--:|:---|---------:|:---:|:----|");
@@ -245,7 +245,7 @@ public partial class Index
             .ToArray();
 
         md.AppendLine();
-        md.AppendLine("### Robot Game Schedule");
+        md.AppendLine("### Robot Game Schedule{.mud-typography .mud-typography-h3}");
         md.AppendLine("{#game-table .game-table}");
         md.AppendLine("|Time|" + string.Join("|", response.Request.RobotGame.Tables) + "|");
         md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", response.Request.RobotGame.Tables.Length)));
@@ -274,7 +274,7 @@ public partial class Index
                 .ToArray();
 
             md.AppendLine();
-            md.AppendLine($"### {pod} Judging Schedule");
+            md.AppendLine($"### {pod} Judging Schedule{{.mud-typography .mud-typography-h3}}");
             md.AppendLine("{#judging-table .judging-table}");
             md.AppendLine("|Time|Team|Name|");
             md.AppendLine("|---:|:----:|:---|");
@@ -299,7 +299,7 @@ public partial class Index
                 .OrderBy(g => g.MatchTime)
                 .ToArray();
             md.AppendLine();
-            md.AppendLine($"### {table} Robot Game Table Schedule");
+            md.AppendLine($"### {table} Robot Game Table Schedule{{.mud-typography .mud-typography-h3}}");
             md.AppendLine("{#game-table-table .game-table-table}");
             md.AppendLine("|Match Time|Team|Name|Match|");
             md.AppendLine("|---------:|:----:|:---|:---:|");
