@@ -18,7 +18,7 @@
 }
 
 .team-table, .queuer-table, .game-table, .judging-table, .game-table-table {
-    border: 1px solid #004;
+    border: 1px solid #007;
     margin-left: 2em;
     font-family: Roboto, Helvetica, Arial, "sans-serif"
 }

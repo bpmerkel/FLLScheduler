@@ -43,6 +43,7 @@ public partial class Index
     private string TableNames { get; set; }
     private string Teams { get; set; }
     private MarkupString GridsToShow { get; set; }
+    private MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -148,11 +149,11 @@ public partial class Index
         var master = response.Schedule;
 
         var md = new StringBuilder();
-        md.AppendLine($"# {response.Request.Name}{{#name .profile-name .mud-typography .mud-typography-h1}}");
-        md.AppendLine($"## Generated {response.GeneratedUtc.ToLocalTime():dddd MMM-dd h\\:mm tt}{{#time .profile-time .mud-typography .mud-typography-h2}}");
+        md.AppendLine($"# {response.Request.Name}{{#name .profile-name .mud-typography .mud-typography-h4}}");
+        md.AppendLine($"## Generated {response.GeneratedUtc.ToLocalTime():dddd MMM-dd h\\:mm tt}{{#time .profile-time .mud-typography .mud-typography-h5}}");
         md.AppendLine();
 
-        md.AppendLine("### Team Schedule{.mud-typography .mud-typography-h3}");
+        md.AppendLine("### Team Schedule{.mud-typography .mud-typography-h6}");
         md.AppendLine("{#team-table .team-table}");
         md.AppendLine("|Team|Name|Judging|Pod|Practice|Practice Table|Match 1|Match 1 Table|Match 2|Match 2 Table|Match 3|Match 3 Table|");
         md.AppendLine("|:--:|:---|------:|:--|-------:|:------------:|------:|:-----------:|------:|:-----------:|------:|:-----------:|");
@@ -217,7 +218,7 @@ public partial class Index
             .ToArray();
 
         md.AppendLine();
-        md.AppendLine("### Queuing Schedule{.mud-typography .mud-typography-h3}");
+        md.AppendLine("### Robot Game Queuing Schedule{.mud-typography .mud-typography-h6}");
         md.AppendLine("{#queuer-table .queuer-table}");
         md.AppendLine("|Queue Time|Team|Name|Match Time|Match|Table|");
         md.AppendLine("|---------:|:--:|:---|---------:|:---:|:----|");
@@ -245,7 +246,7 @@ public partial class Index
             .ToArray();
 
         md.AppendLine();
-        md.AppendLine("### Robot Game Schedule{.mud-typography .mud-typography-h3}");
+        md.AppendLine("### Robot Game Schedule{.mud-typography .mud-typography-h6}");
         md.AppendLine("{#game-table .game-table}");
         md.AppendLine("|Time|" + string.Join("|", response.Request.RobotGame.Tables) + "|");
         md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", response.Request.RobotGame.Tables.Length)));
@@ -274,7 +275,7 @@ public partial class Index
                 .ToArray();
 
             md.AppendLine();
-            md.AppendLine($"### {pod} Judging Schedule{{.mud-typography .mud-typography-h3}}");
+            md.AppendLine($"### {pod} Judging Schedule{{.mud-typography .mud-typography-h6}}");
             md.AppendLine("{#judging-table .judging-table}");
             md.AppendLine("|Time|Team|Name|");
             md.AppendLine("|---:|:----:|:---|");
@@ -299,7 +300,7 @@ public partial class Index
                 .OrderBy(g => g.MatchTime)
                 .ToArray();
             md.AppendLine();
-            md.AppendLine($"### {table} Robot Game Table Schedule{{.mud-typography .mud-typography-h3}}");
+            md.AppendLine($"### {table} Robot Game Table Schedule{{.mud-typography .mud-typography-h6}}");
             md.AppendLine("{#game-table-table .game-table-table}");
             md.AppendLine("|Match Time|Team|Name|Match|");
             md.AppendLine("|---------:|:----:|:---|:---:|");
@@ -310,7 +311,7 @@ public partial class Index
             md.AppendLine();
         }
 
-        GridsToShow = (MarkupString)Markdown.ToHtml(md.ToString(), new MarkdownPipelineBuilder().UseAdvancedExtensions().Build());
+        GridsToShow = (MarkupString)Markdown.ToHtml(md.ToString(), pipeline);
     }
 
     private async Task DoExport()
