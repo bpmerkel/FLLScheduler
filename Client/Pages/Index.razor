@@ -20,7 +20,64 @@
             }
         </MudAppBar>
 
-        <div style="height: 50px">
-        </div>
+        <div class="TopSpacer"></div>
+
+        <MudGrid>
+            <MudItem xs="3">
+                <MudAutocomplete Value="Profile" ValueChanged="DoProfileSelected" T="RequestModel" Strict="false"
+                    SearchFunc="IdentifyProfiles" ToStringFunc="@(e => e==null ? null : e.Name)"
+                    Variant="Variant.Outlined"
+                    Label="Common Tournament Profiles"
+                    Dense="true"
+                    Placeholder="Select a Tournament profile"
+                    HelperText="Select a Tournament profile"
+                    HelperTextOnFocus="true"
+                    Clearable="false" />
+
+                <MudText Typo="Typo.h6">Event Configuration</MudText>
+                <MudTimePicker Label="Registration Time" AmPm="true" @bind-Time="RegistrationTime" Variant="Variant.Outlined" />
+                <MudTimePicker Label="Coaches Meeting Time" AmPm="true" @bind-Time="CoachesMeetingTime" Variant="Variant.Outlined" />
+                <MudTimePicker Label="Opening Ceremony Time" AmPm="true" @bind-Time="OpeningCeremonyTime" Variant="Variant.Outlined" />
+                <MudTimePicker Label="Lunch Start Time Time" AmPm="true" @bind-Time="LunchStartTime" Variant="Variant.Outlined" />
+                <MudTimePicker Label="Lunch End Time" AmPm="true" @bind-Time="LunchEndTime" Variant="Variant.Outlined" />
+
+                <MudText Typo="Typo.h6">Judging Configuration</MudText>
+                <MudTextField @bind-Value="PodNames" T="string" Label="Judging Pod Names" HelperText="Juding Pod names, delimited by comma" HelperTextOnFocus="true" Variant="Variant.Outlined" />
+                <MudTimePicker @bind-Time="JudgingStartTime" Label="Judging Start Time" AmPm="true" Variant="Variant.Outlined" />
+                <MudNumericField T="int" @bind-Value="CycleTimeMinutes" Label="Judging Cycle Time" HelperText="Judging session duration" HelperTextOnFocus="true" Variant="Variant.Outlined" Step="1" />
+                <MudNumericField T="int" @bind-Value="JudgingBufferMinutes" Label="Judging Buffer Minutes" HelperText="Minimum team time required before and after a judging session" HelperTextOnFocus="true" Variant="Variant.Outlined" Step="1" />
+
+                <MudText Typo="Typo.h6">Robot Game Configuration</MudText>
+                <MudTextField @bind-Value="TableNames" T="string" Label="Robot Game Table Names" HelperText="Table names, delimited by comma" HelperTextOnFocus="true" Variant="Variant.Outlined" />
+                <MudTimePicker Label="Robot Games Start Time" AmPm="true" @bind-Time="RobotGamesStartTime" Variant="Variant.Outlined" />
+                <MudNumericField T="int" @bind-Value="RobotGameCycleTimeMinutes" Label="Robot Game Cycle Time Minutes" HelperText="Time between robot game matches" HelperTextOnFocus="true" Variant="Variant.Outlined" Step="1" />
+                <MudNumericField T="int" @bind-Value="RobotGameBufferMinutes" Label="Robot Game Buffer Minutes" HelperText="Minimum team time required before and after a robot game match" HelperTextOnFocus="true" Variant="Variant.Outlined" Step="1" />
+                <MudTextField @bind-Value="Breaks" T="string" Label="Break times" HelperText="Times for breaks for robot games, comma delimeted" Variant="Variant.Outlined" />
+                <MudNumericField T="int" @bind-Value="BreakDurationMinutes" Label="Break duration" HelperText="Break duration in minutes" HelperTextOnFocus="true" Variant="Variant.Outlined" Step="1" />
+
+                <MudText Typo="Typo.h6">Teams</MudText>
+                <MudTextField @bind-Value="Teams" T="string" Label="Team Numbers and Names" HelperText="Team number and names, delimited by spaces, tabs, or commas, one team per line" Variant="Variant.Outlined" Lines="24" />
+            </MudItem>
+            <MudItem xs="9">
+                <MudButton Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Primary">Export</MudButton>
+
+                <MudDataGrid @ref="dataGrid" T="TeamSchedule" ServerData="ServerReload">
+                    <Columns>
+                        <PropertyColumn Property="x => x.Number" Title="Team" />
+                        <PropertyColumn Property="x => x.Name" Title="Name" />
+                        <PropertyColumn Property="x => x.JudgingStart" Title="Judging" />
+                        <PropertyColumn Property="x => x.JudgingPod" Title="Pod" />
+                        <PropertyColumn Property="x => x.PracticeStart" Title="Practice Match Time" />
+                        <PropertyColumn Property="x => x.PracticeTable" Title="Practice Match Table" />
+                        <PropertyColumn Property="x => x.Match1Start" Title="Match 1 Time" />
+                        <PropertyColumn Property="x => x.Match1Table" Title="Match 1 Table" />
+                        <PropertyColumn Property="x => x.Match2Start" Title="Match 2 Time" />
+                        <PropertyColumn Property="x => x.Match2Table" Title="Match 2 Table" />
+                        <PropertyColumn Property="x => x.Match3Start" Title="Match 3 Time" />
+                        <PropertyColumn Property="x => x.Match3Table" Title="Match 3 Table" />
+                    </Columns>
+                </MudDataGrid>
+            </MudItem>
+        </MudGrid>
     </MudMainContent>
 </MudLayout>

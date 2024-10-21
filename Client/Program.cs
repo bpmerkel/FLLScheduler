@@ -16,4 +16,5 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddMudServices();
 
 // Build and run the WebAssembly host
-await builder.Build().RunAsync();
+var app = builder.Build();
+await app.RunAsync();
