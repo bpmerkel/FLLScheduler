@@ -5,7 +5,7 @@ namespace FLLScheduler.Shared;
 public class ResponseModel
 {
     [JsonPropertyName("schedule")]
-    public TeamSchedule[] Schedule { get; set; }
+    public TeamSchedule[] Schedule { get; set; } = [];
     [JsonPropertyName("request")]
     public RequestModel Request { get; set; }
     [JsonPropertyName("generated")]

@@ -6,7 +6,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text;
 using static System.Runtime.InteropServices.JavaScript.JSType;
-using Microsoft.Extensions.Logging;
 
 namespace FLLScheduler.Pages;
 
@@ -76,6 +75,62 @@ public partial class Index
         await dataGrid.ReloadServerData();
     }
 
+    private void DoUpdateProfile()
+    {
+        ArgumentNullException.ThrowIfNull(RegistrationTime);
+        ArgumentNullException.ThrowIfNull(CoachesMeetingTime);
+        ArgumentNullException.ThrowIfNull(OpeningCeremonyTime);
+        ArgumentNullException.ThrowIfNull(LunchStartTime);
+        ArgumentNullException.ThrowIfNull(LunchEndTime);
+        ArgumentNullException.ThrowIfNull(JudgingStartTime);
+        ArgumentNullException.ThrowIfNull(RobotGamesStartTime);
+        ArgumentNullException.ThrowIfNullOrWhiteSpace(PodNames);
+        ArgumentNullException.ThrowIfNullOrWhiteSpace(TableNames);
+        ArgumentNullException.ThrowIfNullOrWhiteSpace(Teams);
+
+        //ArgumentOutOfRangeException.ThrowIfEqual(0, CycleTimeMinutes, nameof(CycleTimeMinutes));
+        //ArgumentOutOfRangeException.ThrowIfEqual(0, JudgingBufferMinutes, nameof(JudgingBufferMinutes));
+        //ArgumentOutOfRangeException.ThrowIfEqual(0, RobotGameCycleTimeMinutes, nameof(RobotGameCycleTimeMinutes));
+        //ArgumentOutOfRangeException.ThrowIfEqual(0, RobotGameBufferMinutes, nameof(RobotGameBufferMinutes));
+        //ArgumentOutOfRangeException.ThrowIfEqual(0, BreakDurationMinutes, nameof(BreakDurationMinutes));
+
+        // generate an updated profile based on the modifications in the UI
+        var profile = new RequestModel();
+        profile.Event.RegistrationTime = TimeOnly.FromTimeSpan(RegistrationTime.Value);
+        profile.Event.CoachesMeetingTime = TimeOnly.FromTimeSpan(CoachesMeetingTime.Value);
+        profile.Event.OpeningCeremonyTime = TimeOnly.FromTimeSpan(OpeningCeremonyTime.Value);
+        profile.Event.LunchStartTime = TimeOnly.FromTimeSpan(LunchStartTime.Value);
+        profile.Event.AfternoonStartTime =  TimeOnly.FromTimeSpan(LunchEndTime.Value);
+        profile.Judging.StartTime = TimeOnly.FromTimeSpan(JudgingStartTime.Value);
+        profile.RobotGame.StartTime = TimeOnly.FromTimeSpan(RobotGamesStartTime.Value);
+        profile.Judging.CycleTimeMinutes = CycleTimeMinutes;
+        profile.Judging.BufferMinutes = JudgingBufferMinutes;
+        profile.RobotGame.CycleTimeMinutes = RobotGameCycleTimeMinutes;
+        profile.RobotGame.BufferMinutes = RobotGameBufferMinutes;
+        profile.RobotGame.BreakDurationMinutes = BreakDurationMinutes;
+        profile.Judging.Pods = PodNames.Split(",;\t ".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+        profile.RobotGame.Tables = TableNames.Split(",;\t ".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+
+        profile.RobotGame.BreakTimes = Breaks.Split(",;\t".ToCharArray(), StringSplitOptions.RemoveEmptyEntries)
+            .Select(b => TimeOnly.TryParse(b, out TimeOnly t) ? t : TimeOnly.MaxValue)  // midnight if invalid
+            .ToArray();
+        profile.Teams = Teams.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+            .Select(t => t.Split(",;\t".ToCharArray(), 2, StringSplitOptions.RemoveEmptyEntries))
+            .Select(pair => new Team { Number = pair[0], Name = pair[1] })
+            .ToArray();
+        profile.Name = $"Customized: {profile.Teams.Length} Teams, {profile.Judging.Pods.Length} Judging Pods, {profile.RobotGame.Tables.Length} Game Tables";
+
+        ArgumentOutOfRangeException.ThrowIfNotEqual(0, profile.RobotGame.Tables.Length % 2);    // ensure an even number of tables
+
+        Profile = profile;
+        var existing = Profiles.FirstOrDefault(p => p.Name == profile.Name);
+        if (existing != null)
+        {
+            Profiles.Remove(existing);
+        }
+        Profiles.Insert(0, profile);
+    }
+
     private async Task<GridData<TeamSchedule>> ServerReload(GridState<TeamSchedule> state)
     {
         var json = new StringContent(JsonSerializer.Serialize(Profile), Encoding.UTF8, "application/json");
@@ -95,21 +150,6 @@ public partial class Index
             Items = []
         };
     }
-
-    //private async Task<ResponseModel> CallApi(RequestModel request)
-    //{
-    //    using var httpClient = new HttpClient();
-    //    var json = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
-    //    using var response = await httpClient.PostAsync("https://fllscheduler.merkel.net/api/calculateschedule", json);
-    //    if (response.IsSuccessStatusCode)
-    //    {
-    //        return await response.Content.ReadFromJsonAsync<ResponseModel>();
-    //    }
-    //    else
-    //    {
-    //        return new ResponseModel { Schedule = [], Request = request, GeneratedUtc = DateTime.UtcNow };
-    //    }
-    //}
 
     private async Task<IEnumerable<RequestModel>> IdentifyProfiles(string value, CancellationToken token)
     {
@@ -189,7 +229,7 @@ public partial class Index
         GC.SuppressFinalize(this);
     }
 
-    public static RequestModel[] Profiles = new[]
+    public static List<RequestModel> Profiles = new[]
         {
             (teamcount: 12, tablecount: 2),
             (teamcount: 18, tablecount: 4),
@@ -199,7 +239,7 @@ public partial class Index
             (teamcount: 60, tablecount: 10)
         }
         .Select(e => BuildRequest(e.teamcount, e.tablecount))
-        .ToArray();
+        .ToList();
 
     private static RequestModel BuildRequest(int teamcount, int tablecount)
     {
