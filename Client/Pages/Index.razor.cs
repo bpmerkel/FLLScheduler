@@ -167,31 +167,6 @@ public partial class Index
         }
         md.AppendLine();
 
-        foreach (var pod in response.Request.Judging.Pods)
-        {
-            var podschedule = master
-                .Where(s => s.JudgingPod == pod)
-                .OrderBy(s => s.JudgingStart)
-                .Select(s => new
-                {
-                    s.JudgingStart,
-                    s.Number,
-                    s.Name
-                })
-                .ToArray();
-
-            md.AppendLine();
-            md.AppendLine($"### {pod} Judging Schedule{{.mud-typography .mud-typography-h6}}");
-            md.AppendLine("{#judging-table .markdown-table}");
-            md.AppendLine("|Time|Team|Name|");
-            md.AppendLine("|---:|:----:|:---|");
-            foreach (var s in podschedule)
-            {
-                md.AppendLine($"|{s.JudgingStart:h\\:mm tt}|{s.Number}|{s.Name}|");
-            }
-            md.AppendLine();
-        }
-
         var judgingqueue = master
             .Select(s => new
             {
@@ -248,6 +223,31 @@ public partial class Index
             md.AppendLine("|");
         }
         md.AppendLine();
+
+        foreach (var pod in response.Request.Judging.Pods)
+        {
+            var podschedule = master
+                .Where(s => s.JudgingPod == pod)
+                .OrderBy(s => s.JudgingStart)
+                .Select(s => new
+                {
+                    s.JudgingStart,
+                    s.Number,
+                    s.Name
+                })
+                .ToArray();
+
+            md.AppendLine();
+            md.AppendLine($"### {pod} Judging Schedule{{.mud-typography .mud-typography-h6}}");
+            md.AppendLine("{#judging-table .markdown-table}");
+            md.AppendLine("|Time|Team|Name|");
+            md.AppendLine("|---:|:----:|:---|");
+            foreach (var s in podschedule)
+            {
+                md.AppendLine($"|{s.JudgingStart:h\\:mm tt}|{s.Number}|{s.Name}|");
+            }
+            md.AppendLine();
+        }
 
         var games = master
             .Select(s => new
