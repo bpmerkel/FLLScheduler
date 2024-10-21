@@ -17,17 +17,19 @@
     height: 50px;
 }
 
-.queuer-table, .game-table, .judging-table, game-table-table {
-    border: 1px solid #999;
+.team-table, .queuer-table, .game-table, .judging-table, .game-table-table {
+    border: 1px solid #555;
 }
-    .queuer-table th, .game-table th, .judging-table th, .game-table-table th {
+    .team-table th, .queuer-table th, .game-table th, .judging-table th, .game-table-table th {
+        padding-left: 2em;
+        padding-right: 2em;
+        background-color: #006;
+        border-bottom: 2px solid #555;
+    }
+    .team-table td, .queuer-table td, .game-table td, .judging-table td, .game-table-table td {
         padding-left: 2em;
         padding-right: 2em;
     }
-    .queuer-table td, .game-table td, .judging-table td, .game-table-table td {
-        padding-left: 2em;
-        padding-right: 2em;
-    }
-    .queuer-table tbody tr:nth-child(odd), .game-table tbody tr:nth-child(odd), .judging-table tbody tr:nth-child(odd), .game-table-table tbody tr:nth-child(odd) {
-        background-color: #008;
+    .team-table tbody tr:nth-child(odd), .queuer-table tbody tr:nth-child(odd), .game-table tbody tr:nth-child(odd), .judging-table tbody tr:nth-child(odd), .game-table-table tbody tr:nth-child(odd) {
+        background-color: #004;
     }
