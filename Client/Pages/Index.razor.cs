@@ -7,6 +7,8 @@ using System.Text.Json;
 using System.Text;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Dynamic;
+using static FLLScheduler.Pages.Index;
+using Markdig;
 
 namespace FLLScheduler.Pages;
 
@@ -43,6 +45,7 @@ public partial class Index
     private string Breaks { get; set; }
     private string TableNames { get; set; }
     private string Teams { get; set; }
+    private MarkupString GridsToShow { get; set; }
     private MudDataGrid<TeamSchedule> dataGrid;
 
     protected override async void OnAfterRender(bool firstRender)
@@ -154,8 +157,9 @@ public partial class Index
 
     private void ShowResults(ResponseModel response)
     {
-        //response.Request.Name,
-        //Generated = response.GeneratedUtc.ToLocalTime(),
+        var md = new StringBuilder();
+        md.AppendLine($"# {response.Request.Name}");
+        md.AppendLine($"## Generated {response.GeneratedUtc.ToLocalTime():DDD MMM-dd hh\\:mm tt}");
 
         var master = response.Schedule;
 
@@ -209,24 +213,45 @@ public partial class Index
             .ThenBy(e => response.Request.RobotGame.Tables.Select((t, i) => (t, i)).First(ee => ee.t == e.Table).i)
             .ToArray();
 
+        md.AppendLine("### Queuing Schedule");
+        md.AppendLine("|Queue Time|Number|Name|Match Time|Match|Table|");
+        md.AppendLine("|---------:|-----:|:---|---------:|:---:|:----|");
+        foreach (var qe in games)
+        {
+            md.AppendLine($"|{qe.QueueTime:hh\\:mm tt}|{qe.Number}|{qe.Name}|{qe.MatchTime:hh\\:mm tt}|{qe.Match}|{qe.Table}|");
+        }
+        md.AppendLine();
+
         var combined = games
             .GroupBy(game => game.MatchTime)
             .Select(g => new { Time = g.Key, Games = g.ToArray() })
             .Select(e =>
             {
-                var ex = new ExpandoObject();
-                ex.TryAdd("Time", e.Time);
-
+                var schedule = new AllTableSchedule { Time = e.Time };
                 foreach (var table in response.Request.RobotGame.Tables)
                 {
                     var assignment = e.Games.FirstOrDefault(g => g.Table == table);
-                    ex.TryAdd(table, assignment == null
+                    schedule.Columns.Add((table, assignment == null
                         ? "-"
-                        : $"{assignment.Number} - {assignment.Name} ({assignment.Match})");
+                        : $"{assignment.Number} - {assignment.Name} ({assignment.Match})"));
                 }
-                return ex;
+                return schedule;
             })
             .ToArray();
+
+        md.AppendLine("### Robot Game Schedule");
+        md.AppendLine("|Time|" + string.Join("|", response.Request.RobotGame.Tables) + "|");
+        md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---|", response.Request.RobotGame.Tables.Length)));
+        foreach (var s in combined)
+        {
+            md.Append($"|{s.Time:hh\\:mm tt}");
+            foreach (var t in s.Columns)
+            {
+                md.Append($"|{t.team}");
+            }
+            md.AppendLine("|");
+        }
+        md.AppendLine();
 
         foreach (var pod in response.Request.Judging.Pods)
         {
@@ -235,12 +260,20 @@ public partial class Index
                 .OrderBy(s => s.JudgingStart)
                 .Select(s => new PodEntry
                 {
-                    Pod = pod,
                     JudgingStart = s.JudgingStart,
                     Number = s.Number,
                     Name = s.Name
                 })
                 .ToArray();
+
+            md.AppendLine($"### Pod {pod} Schedule");
+            md.AppendLine("|Time|Number|Name|");
+            md.AppendLine("|---:|-----:|:---|");
+            foreach (var s in podschedule)
+            {
+                md.AppendLine($"|{s.JudgingStart:hh\\:mm tt}|{s.Number}|{s.Name}|");
+            }
+            md.AppendLine();
         }
 
         foreach (var table in response.Request.RobotGame.Tables)
@@ -249,7 +282,6 @@ public partial class Index
                 .Where(g => g.Table == table)
                 .Select(g => new TableEntry
                 {
-                    Table = table,
                     MatchTime = g.MatchTime,
                     Number = g.Number,
                     Name = g.Name,
@@ -257,14 +289,26 @@ public partial class Index
                 })
                 .OrderBy(g => g.MatchTime)
                 .ToArray();
+            md.AppendLine($"### Table {table} Schedule");
+            md.AppendLine("|Match Time|Number|Name|Match|");
+            md.AppendLine("|---------:|-----:|:---|:---:|");
+            foreach (var s in gamesattable)
+            {
+                md.AppendLine($"|{s.MatchTime:hh\\:mm tt}|{s.Number}|{s.Name}|{s.Match}");
+            }
+            md.AppendLine();
         }
+
+        GridsToShow = (MarkupString)Markdown.ToHtml(md.ToString(), new MarkdownPipelineBuilder().UseAdvancedExtensions().Build());
     }
 
-    public interface IGridToShow
+    public class AllTableSchedule
     {
+        public TimeOnly Time { get; set; }
+        public List<(string table, string team)> Columns { get; } = [];
     }
 
-    public class QueuerEntry : IGridToShow
+    public class QueuerEntry
     {
         public TimeOnly QueueTime { get; set; }
         public string Number { get; set; }
@@ -274,17 +318,15 @@ public partial class Index
         public string Table { get; set; }
     }
 
-    public class PodEntry : IGridToShow
+    public class PodEntry
     {
-        public string Pod { get; set; }
         public TimeOnly JudgingStart { get; set; }
         public string Number { get; set; }
         public string Name { get; set; }
     }
 
-    public class TableEntry : IGridToShow
+    public class TableEntry
     {
-        public string Table { get; set; }
         public TimeOnly MatchTime { get; set; }
         public string Number { get; set; }
         public string Name { get; set; }
@@ -369,7 +411,7 @@ public partial class Index
         GC.SuppressFinalize(this);
     }
 
-    public static List<RequestModel> Profiles = new[]
+    private static List<RequestModel> Profiles = new[]
         {
             (teamcount: 12, tablecount: 2),
             (teamcount: 18, tablecount: 4),
