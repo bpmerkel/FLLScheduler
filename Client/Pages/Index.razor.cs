@@ -214,7 +214,8 @@ public partial class Index
             .ToArray();
 
         md.AppendLine("### Queuing Schedule");
-        md.AppendLine("|Queue Time|Number|Name|Match Time|Match|Table|{#queuer-table .queuer-table}");
+        md.AppendLine("{#queuer-table .queuer-table}");
+        md.AppendLine("|Queue Time|Team|Name|Match Time|Match|Table|");
         md.AppendLine("|---------:|:----:|:---|---------:|:---:|:----|");
         foreach (var qe in games)
         {
@@ -240,7 +241,8 @@ public partial class Index
             .ToArray();
 
         md.AppendLine("### Robot Game Schedule");
-        md.AppendLine("|Time|" + string.Join("|", response.Request.RobotGame.Tables) + "|{#game-table .game-table}");
+        md.AppendLine("{#game-table .game-table}");
+        md.AppendLine("|Time|" + string.Join("|", response.Request.RobotGame.Tables) + "|");
         md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---|", response.Request.RobotGame.Tables.Length)));
         foreach (var s in combined)
         {
@@ -267,7 +269,8 @@ public partial class Index
                 .ToArray();
 
             md.AppendLine($"### {pod} Judging Schedule");
-            md.AppendLine("|Time|Number|Name|{#judging-table .judging-table}");
+            md.AppendLine("{#judging-table .judging-table}");
+            md.AppendLine("|Time|Team|Name|");
             md.AppendLine("|---:|:----:|:---|");
             foreach (var s in podschedule)
             {
@@ -290,7 +293,8 @@ public partial class Index
                 .OrderBy(g => g.MatchTime)
                 .ToArray();
             md.AppendLine($"### {table} Robot Game Table Schedule");
-            md.AppendLine("|Match Time|Number|Name|Match|{#game-table-table .game-table-table}");
+            md.AppendLine("{#game-table-table .game-table-table}");
+            md.AppendLine("|Match Time|Team|Name|Match|");
             md.AppendLine("|---------:|:----:|:---|:---:|");
             foreach (var s in gamesattable)
             {
