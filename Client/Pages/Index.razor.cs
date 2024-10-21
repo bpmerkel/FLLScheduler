@@ -5,9 +5,6 @@ using MudBlazor.Services;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.Dynamic;
-using static FLLScheduler.Pages.Index;
 using Markdig;
 
 namespace FLLScheduler.Pages;
@@ -26,7 +23,7 @@ public partial class Index
     /// Gets or sets the browser viewport service.
     /// </summary>
     [Inject] private IBrowserViewportService BrowserViewportService { get; set; }
-    [Inject] private HttpClient httpClient { get; set; }
+    [Inject] private HttpClient HttpClient { get; set; }
 
     private RequestModel Profile { get; set; }
     private TimeSpan? RegistrationTime { get; set; }
@@ -46,7 +43,6 @@ public partial class Index
     private string TableNames { get; set; }
     private string Teams { get; set; }
     private MarkupString GridsToShow { get; set; }
-    private MudDataGrid<TeamSchedule> dataGrid;
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -75,10 +71,10 @@ public partial class Index
         TableNames = string.Join(", ", Profile.RobotGame.Tables);
         Breaks = string.Join(", ", Profile.RobotGame.BreakTimes.Select(t => $"{t:hh\\:mm tt}"));
         Teams = string.Join(Environment.NewLine, Profile.Teams.Select(t => $"{t.Number}, {t.Name}"));
-        await dataGrid.ReloadServerData();
+        await ServerReload();
     }
 
-    private void DoUpdateProfile()
+    private async Task DoUpdateProfile()
     {
         ArgumentNullException.ThrowIfNull(RegistrationTime);
         ArgumentNullException.ThrowIfNull(CoachesMeetingTime);
@@ -125,43 +121,48 @@ public partial class Index
 
         ArgumentOutOfRangeException.ThrowIfNotEqual(0, profile.RobotGame.Tables.Length % 2);    // ensure an even number of tables
 
-        Profile = profile;
         var existing = Profiles.FirstOrDefault(p => p.Name == profile.Name);
         if (existing != null)
         {
             Profiles.Remove(existing);
         }
         Profiles.Insert(0, profile);
+        Profile = profile;
+
+        await ServerReload();
     }
 
-    private async Task<GridData<TeamSchedule>> ServerReload(GridState<TeamSchedule> state)
+    private async Task ServerReload()
     {
         var json = new StringContent(JsonSerializer.Serialize(Profile), Encoding.UTF8, "application/json");
-        using var response = await httpClient.PostAsync("api/CalculateSchedule", json);
+        using var response = await HttpClient.PostAsync("api/CalculateSchedule", json);
         if (response.IsSuccessStatusCode)
         {
             var responseModel = await response.Content.ReadFromJsonAsync<ResponseModel>();
             ShowResults(responseModel);
-            return new GridData<TeamSchedule>
-            {
-                TotalItems = responseModel.Schedule.Length,
-                Items = responseModel.Schedule
-            };
         }
-        return new GridData<TeamSchedule>
-        {
-            TotalItems = 0,
-            Items = []
-        };
     }
 
     private void ShowResults(ResponseModel response)
     {
+        var master = response.Schedule;
+
         var md = new StringBuilder();
         md.AppendLine($"# {response.Request.Name}{{#name .profile-name}}");
         md.AppendLine($"## Generated {response.GeneratedUtc.ToLocalTime():dddd MMM-dd hh\\:mm tt}{{#time .profile-time}}");
 
-        var master = response.Schedule;
+        md.AppendLine($"### Team Schedule");
+        md.AppendLine("{#team-table .team-table}");
+        md.AppendLine("|Team|Name|Judging|Pod|Practice|Practice Table|Match 1|Match 1 Table|Match 2|Match 2 Table|Match 3|Match 3 Table|");
+        md.AppendLine("|:--:|:---|------:|:--|-------:|:------------:|------:|:-----------:|------:|:-----------:|------:|:-----------:|");
+        foreach (var s in master)
+        {
+            md.Append($"|{s.Number}|{s.Name}|{s.JudgingStart:hh\\:mm tt}|{s.JudgingPod}|{s.PracticeStart:hh\\:mm tt}|{s.PracticeTable}");
+            md.Append($"|{s.Match1Start:hh\\:mm tt}|{s.Match1Table}");
+            md.Append($"|{s.Match2Start:hh\\:mm tt}|{s.Match2Table}");
+            md.AppendLine($"|{s.Match3Start:hh\\:mm tt}|{s.Match3Table}|");
+        }
+        md.AppendLine();
 
         var games = master
             .Select(s => new
@@ -199,14 +200,14 @@ public partial class Index
                     s.Name,
                     Match = "3"
                 }))
-            .Select(e => new QueuerEntry
+            .Select(e => new
             {
                 QueueTime = e.Time.AddMinutes(-5),
-                Number = e.Number,
-                Name = e.Name,
+                e.Number,
+                e.Name,
                 MatchTime = e.Time,
-                Match = e.Match,
-                Table = e.Table
+                e.Match,
+                e.Table
             })
             .OrderBy(e => e.QueueTime)
             // order tables in the order given in the request
@@ -216,7 +217,7 @@ public partial class Index
         md.AppendLine("### Queuing Schedule");
         md.AppendLine("{#queuer-table .queuer-table}");
         md.AppendLine("|Queue Time|Team|Name|Match Time|Match|Table|");
-        md.AppendLine("|---------:|:----:|:---|---------:|:---:|:----|");
+        md.AppendLine("|---------:|:--:|:---|---------:|:---:|:----|");
         foreach (var qe in games)
         {
             md.AppendLine($"|{qe.QueueTime:hh\\:mm tt}|{qe.Number}|{qe.Name}|{qe.MatchTime:hh\\:mm tt}|{qe.Match}|{qe.Table}|");
@@ -228,11 +229,11 @@ public partial class Index
             .Select(g => new { Time = g.Key, Games = g.ToArray() })
             .Select(e =>
             {
-                var schedule = new AllTableSchedule { Time = e.Time };
+                var schedule = new { e.Time, Columns = new List<(string table, string team)>() };
                 foreach (var table in response.Request.RobotGame.Tables)
                 {
                     var assignment = e.Games.FirstOrDefault(g => g.Table == table);
-                    schedule.Columns.Add((table, assignment == null
+                    schedule.Columns.Add((table, team: assignment == null
                         ? "-"
                         : $"{assignment.Number} - {assignment.Name} ({assignment.Match})"));
                 }
@@ -243,13 +244,13 @@ public partial class Index
         md.AppendLine("### Robot Game Schedule");
         md.AppendLine("{#game-table .game-table}");
         md.AppendLine("|Time|" + string.Join("|", response.Request.RobotGame.Tables) + "|");
-        md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---|", response.Request.RobotGame.Tables.Length)));
+        md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", response.Request.RobotGame.Tables.Length)));
         foreach (var s in combined)
         {
             md.Append($"|{s.Time:hh\\:mm tt}");
-            foreach (var t in s.Columns)
+            foreach (var (table, team) in s.Columns)
             {
-                md.Append($"|{t.team}");
+                md.Append($"|{team}");
             }
             md.AppendLine("|");
         }
@@ -260,11 +261,11 @@ public partial class Index
             var podschedule = master
                 .Where(s => s.JudgingPod == pod)
                 .OrderBy(s => s.JudgingStart)
-                .Select(s => new PodEntry
+                .Select(s => new
                 {
-                    JudgingStart = s.JudgingStart,
-                    Number = s.Number,
-                    Name = s.Name
+                    s.JudgingStart,
+                    s.Number,
+                    s.Name
                 })
                 .ToArray();
 
@@ -283,12 +284,12 @@ public partial class Index
         {
             var gamesattable = games
                 .Where(g => g.Table == table)
-                .Select(g => new TableEntry
+                .Select(g => new
                 {
-                    MatchTime = g.MatchTime,
-                    Number = g.Number,
-                    Name = g.Name,
-                    Match = g.Match
+                    g.MatchTime,
+                    g.Number,
+                    g.Name,
+                    g.Match
                 })
                 .OrderBy(g => g.MatchTime)
                 .ToArray();
@@ -306,35 +307,9 @@ public partial class Index
         GridsToShow = (MarkupString)Markdown.ToHtml(md.ToString(), new MarkdownPipelineBuilder().UseAdvancedExtensions().Build());
     }
 
-    public class AllTableSchedule
+    private async Task DoExport()
     {
-        public TimeOnly Time { get; set; }
-        public List<(string table, string team)> Columns { get; } = [];
-    }
-
-    public class QueuerEntry
-    {
-        public TimeOnly QueueTime { get; set; }
-        public string Number { get; set; }
-        public string Name { get; set; }
-        public TimeOnly MatchTime { get; set; }
-        public string Match { get; set; }
-        public string Table { get; set; }
-    }
-
-    public class PodEntry
-    {
-        public TimeOnly JudgingStart { get; set; }
-        public string Number { get; set; }
-        public string Name { get; set; }
-    }
-
-    public class TableEntry
-    {
-        public TimeOnly MatchTime { get; set; }
-        public string Number { get; set; }
-        public string Name { get; set; }
-        public string Match { get; set; }
+        await Task.Delay(1);
     }
 
     private async Task<IEnumerable<RequestModel>> IdentifyProfiles(string value, CancellationToken token)
@@ -415,7 +390,7 @@ public partial class Index
         GC.SuppressFinalize(this);
     }
 
-    private static List<RequestModel> Profiles = new[]
+    private static readonly List<RequestModel> Profiles = new[]
         {
             (teamcount: 12, tablecount: 2),
             (teamcount: 18, tablecount: 4),

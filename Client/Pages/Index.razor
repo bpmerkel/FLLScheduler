@@ -71,37 +71,8 @@
             <MudItem xs="8">
                 <MudStack Row="true">
                     <MudButton OnClick="DoUpdateProfile" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Refresh" Color="Color.Primary">Run</MudButton>
-                    <MudButton Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Primary">Export</MudButton>
+                    <MudButton OnClick="DoExport" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Primary">Export</MudButton>
                 </MudStack>
-                <MudDataGrid @ref="dataGrid" T="TeamSchedule" ServerData="ServerReload" Dense="true" Filterable="false" SortMode="SortMode.Multiple">
-                    <ColGroup>
-                        <col style="width: 5em" />
-                        <col style="width: 20em" />
-                        <col style="width: 8em" />
-                        <col style="width: 8em" />
-                        <col style="width: 8em" />
-                        <col style="width: 8em" />
-                        <col style="width: 8em" />
-                        <col style="width: 8em" />
-                        <col style="width: 8em" />
-                        <col style="width: 8em" />
-                    </ColGroup>
-                    <Columns>
-                        <PropertyColumn Property="x => x.Number" Title="Team" T="TeamSchedule" TProperty="string" />
-                        <PropertyColumn Property="x => x.Name" Title="Name" T="TeamSchedule" TProperty="string" />
-                        <PropertyColumn Property="x => x.JudgingStart" Title="Judging" T="TeamSchedule" TProperty="TimeOnly" Format="hh:mm tt" />
-                        <PropertyColumn Property="x => x.JudgingPod" Title="Pod" T="TeamSchedule" TProperty="string" />
-                        <PropertyColumn Property="x => x.PracticeStart" Title="Practice" T="TeamSchedule" TProperty="TimeOnly" Format="hh:mm tt" />
-                        <PropertyColumn Property="x => x.PracticeTable" Title="Practice Table" T="TeamSchedule" TProperty="string" />
-                        <PropertyColumn Property="x => x.Match1Start" Title="Match 1" T="TeamSchedule" TProperty="TimeOnly" Format="hh:mm tt" />
-                        <PropertyColumn Property="x => x.Match1Table" Title="Match 1 Table" T="TeamSchedule" TProperty="string" />
-                        <PropertyColumn Property="x => x.Match2Start" Title="Match 2" T="TeamSchedule" TProperty="TimeOnly" Format="hh:mm tt" />
-                        <PropertyColumn Property="x => x.Match2Table" Title="Match 2 Table" T="TeamSchedule" TProperty="string" />
-                        <PropertyColumn Property="x => x.Match3Start" Title="Match 3" T="TeamSchedule" TProperty="TimeOnly" Format="hh:mm tt" />
-                        <PropertyColumn Property="x => x.Match3Table" Title="Match 3 Table" T="TeamSchedule" TProperty="string" />
-                    </Columns>
-                </MudDataGrid>
-
                 @GridsToShow
             </MudItem>
         </MudGrid>
