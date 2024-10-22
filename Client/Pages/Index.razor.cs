@@ -108,14 +108,13 @@ public partial class Index
         profile.RobotGame.CycleTimeMinutes = RobotGameCycleTimeMinutes;
         profile.RobotGame.BufferMinutes = RobotGameBufferMinutes;
         profile.RobotGame.BreakDurationMinutes = BreakDurationMinutes;
-        profile.Judging.Pods = PodNames.Split(",;\t ".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
-        profile.RobotGame.Tables = TableNames.Split(",;\t ".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
-
-        profile.RobotGame.BreakTimes = Breaks.Split(",;\t".ToCharArray(), StringSplitOptions.RemoveEmptyEntries)
+        profile.Judging.Pods = PodNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+        profile.RobotGame.Tables = TableNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+        profile.RobotGame.BreakTimes = Breaks.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries)
             .Select(b => TimeOnly.TryParse(b, out TimeOnly t) ? t : TimeOnly.MaxValue)  // midnight if invalid
             .ToArray();
         profile.Teams = Teams.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
-            .Select(t => t.Split(",;\t".ToCharArray(), 2, StringSplitOptions.RemoveEmptyEntries))
+            .Select(t => t.Split(",;\t ".ToCharArray(), 2, StringSplitOptions.RemoveEmptyEntries))
             .Select(pair => new Team { Number = pair[0], Name = pair[1] })
             .ToArray();
         profile.Name = $"Customized: {profile.Teams.Length} Teams, {profile.Judging.Pods.Length} Judging Pods, {profile.RobotGame.Tables.Length} Game Tables";
@@ -151,6 +150,16 @@ public partial class Index
         var md = new StringBuilder();
         md.AppendLine($"# {response.Request.Name}{{#name .profile-name .mud-typography .mud-typography-h4}}");
         md.AppendLine($"## Generated {response.GeneratedUtc.ToLocalTime():dddd MMM-dd h\\:mm tt}{{#time .profile-time .mud-typography .mud-typography-h5}}");
+        md.AppendLine();
+
+        md.AppendLine("### Registration{.mud-typography .mud-typography-h6}");
+        md.AppendLine("{#registration-table .markdown-table}");
+        md.AppendLine("|Team|Name|Roster|Coach 1|Coach 2|");
+        md.AppendLine("|:--:|:---|-----:|:------|:------|");
+        foreach (var s in master.OrderBy(s => s.Number))
+        {
+            md.Append($"|{s.Number}|{s.Name}| | | |");
+        }
         md.AppendLine();
 
         md.AppendLine("### Team Schedule{.mud-typography .mud-typography-h6}");
