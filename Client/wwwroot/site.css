@@ -19,7 +19,7 @@
 
 .align-right input {    /* align the numeric components so that the number is on the right */
     text-align: right;
-    padding-right: 2em;
+    padding-right: 2em !important;
 }
 
 .markdown-table {
