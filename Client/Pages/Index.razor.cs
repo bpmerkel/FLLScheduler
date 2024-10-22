@@ -108,13 +108,13 @@ public partial class Index
         profile.RobotGame.CycleTimeMinutes = RobotGameCycleTimeMinutes;
         profile.RobotGame.BufferMinutes = RobotGameBufferMinutes;
         profile.RobotGame.BreakDurationMinutes = BreakDurationMinutes;
-        profile.Judging.Pods = PodNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
-        profile.RobotGame.Tables = TableNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
-        profile.RobotGame.BreakTimes = Breaks.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries)
+        profile.Judging.Pods = PodNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        profile.RobotGame.Tables = TableNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        profile.RobotGame.BreakTimes = Breaks.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(b => TimeOnly.TryParse(b, out TimeOnly t) ? t : TimeOnly.MaxValue)  // midnight if invalid
             .ToArray();
-        profile.Teams = Teams.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
-            .Select(t => t.Split(",;\t ".ToCharArray(), 2, StringSplitOptions.RemoveEmptyEntries))
+        profile.Teams = Teams.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(t => t.Split(",;\t ".ToCharArray(), 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Select(pair => new Team { Number = pair[0], Name = pair[1] })
             .ToArray();
         profile.Name = $"Customized: {profile.Teams.Length} Teams, {profile.Judging.Pods.Length} Judging Pods, {profile.RobotGame.Tables.Length} Game Tables";
@@ -158,7 +158,7 @@ public partial class Index
         md.AppendLine("|:--:|:---|-----:|:------|:------|");
         foreach (var s in master.OrderBy(s => s.Number))
         {
-            md.Append($"|{s.Number}|{s.Name}| | | |");
+            md.AppendLine($"|{s.Number}|{s.Name}| | | |");
         }
         md.AppendLine();
 
