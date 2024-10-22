@@ -87,9 +87,9 @@ public class CalculateScheduleApi
                 slot = slot.AddMinutes(config.Judging.CycleTimeMinutes);
                 // skip to afternoon if next slot overlaps lunch 
                 var end = slot.AddMinutes(config.Judging.CycleTimeMinutes);
-                if (end.IsBetween(config.Event.LunchStartTime.Add(TimeSpan.FromSeconds(1)), config.Event.AfternoonStartTime))
+                if (end.IsBetween(config.Event.LunchStartTime.Add(TimeSpan.FromSeconds(1)), config.Event.LunchEndTime))
                 {
-                    slot = config.Event.AfternoonStartTime;
+                    slot = config.Event.LunchEndTime;
                 }
             }
         }
@@ -146,9 +146,9 @@ public class CalculateScheduleApi
 
             // skip to afternoon if next slot overlaps into lunch 
             var end = slot.AddMinutes(config.RobotGame.CycleTimeMinutes);
-            if (end.IsBetween(config.Event.LunchStartTime.AddMinutes(1), config.Event.AfternoonStartTime))
+            if (end.IsBetween(config.Event.LunchStartTime.AddMinutes(1), config.Event.LunchEndTime))
             {
-                slot = config.Event.AfternoonStartTime;
+                slot = config.Event.LunchEndTime;
             }
 
             // skip break times for break durations 

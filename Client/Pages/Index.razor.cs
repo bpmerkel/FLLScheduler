@@ -60,7 +60,7 @@ public partial class Index
         CoachesMeetingTime = Profile.Event.CoachesMeetingTime.ToTimeSpan();
         OpeningCeremonyTime = Profile.Event.OpeningCeremonyTime.ToTimeSpan();
         LunchStartTime = Profile.Event.LunchStartTime.ToTimeSpan();
-        LunchEndTime = Profile.Event.AfternoonStartTime.ToTimeSpan();
+        LunchEndTime = Profile.Event.LunchEndTime.ToTimeSpan();
         JudgingStartTime = Profile.Judging.StartTime.ToTimeSpan();
         RobotGamesStartTime = Profile.RobotGame.StartTime.ToTimeSpan();
         CycleTimeMinutes = Profile.Judging.CycleTimeMinutes;
@@ -100,7 +100,7 @@ public partial class Index
         profile.Event.CoachesMeetingTime = TimeOnly.FromTimeSpan(CoachesMeetingTime.Value);
         profile.Event.OpeningCeremonyTime = TimeOnly.FromTimeSpan(OpeningCeremonyTime.Value);
         profile.Event.LunchStartTime = TimeOnly.FromTimeSpan(LunchStartTime.Value);
-        profile.Event.AfternoonStartTime = TimeOnly.FromTimeSpan(LunchEndTime.Value);
+        profile.Event.LunchEndTime = TimeOnly.FromTimeSpan(LunchEndTime.Value);
         profile.Judging.StartTime = TimeOnly.FromTimeSpan(JudgingStartTime.Value);
         profile.RobotGame.StartTime = TimeOnly.FromTimeSpan(RobotGamesStartTime.Value);
         profile.Judging.CycleTimeMinutes = CycleTimeMinutes;
@@ -501,7 +501,7 @@ public partial class Index
                 CoachesMeetingTime = TimeOnly.Parse("8:30 am"),
                 OpeningCeremonyTime = TimeOnly.Parse("9:00 am"),
                 LunchStartTime = TimeOnly.Parse("12:00 pm"),
-                AfternoonStartTime = TimeOnly.Parse("1:00 pm")
+                LunchEndTime = TimeOnly.Parse("1:00 pm")
             },
             Judging = new JudgingConfig
             {
