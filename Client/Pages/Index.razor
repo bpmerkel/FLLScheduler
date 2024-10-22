@@ -57,11 +57,11 @@
                 <MudTextField @bind-Value="TableNames" T="string" Label="Robot Game Table Names" HelperText="Table names, delimited by comma" Variant="Variant.Outlined" />
                 <MudStack Row="true">
                     <MudTimePicker Label="Robot Games Start" AmPm="true" @bind-Time="RobotGamesStartTime" Variant="Variant.Outlined" HelperText="Choose the time when robot games begin" HelperTextOnFocus="false" />
-                    <MudNumericField T="int" @bind-Value="RobotGameCycleTimeMinutes" Label="Robot Game Cycle Duration" HelperText="Time in minutes between robot game matches" Variant="Variant.Outlined" Step="1" />
+                    <MudNumericField T="int" @bind-Value="RobotGameCycleTimeMinutes" Label="Robot Game Cycle Duration" HelperText="Time in minutes for each inspection, match, scoring, and reset" Variant="Variant.Outlined" Step="1" />
                     <MudNumericField T="int" @bind-Value="RobotGameBufferMinutes" Label="Robot Game Buffer" HelperText="Minimum team time in minutes required before and after a robot game match" Variant="Variant.Outlined" Step="1" />
                 </MudStack>
                 <MudStack Row="true">
-                    <MudTextField @bind-Value="Breaks" T="string" Label="Break times" HelperText="Times for breaks for robot games, comma delimeted" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="Breaks" T="string" Label="Break times" HelperText="Times for breaks for robot games, comma delimited" Variant="Variant.Outlined" />
                     <MudNumericField T="int" @bind-Value="BreakDurationMinutes" Label="Break duration" HelperText="Break duration in minutes" Variant="Variant.Outlined" Step="1" />
                 </MudStack>
 
