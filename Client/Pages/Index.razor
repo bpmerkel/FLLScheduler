@@ -23,7 +23,7 @@
         <div class="TopSpacer"></div>
 
         <MudGrid>
-            <MudItem xs="4">
+            <MudItem xs="5">
                 <MudAutocomplete Value="Profile" ValueChanged="DoProfileSelected" T="RequestModel" Strict="false"
                     SearchFunc="IdentifyProfiles" ToStringFunc="@(e => e==null ? null : e.Name)"
                     Variant="Variant.Outlined"
@@ -68,12 +68,14 @@
                 <MudText Typo="Typo.h6">Teams</MudText>
                 <MudTextField @bind-Value="Teams" T="string" Label="Team Numbers and Names" HelperText="Team number and names, delimited by spaces, tabs, or commas, one team per line" Variant="Variant.Outlined" Lines="12" AutoGrow="true" />
             </MudItem>
-            <MudItem xs="8">
+            <MudItem xs="7">
                 <MudStack Row="true">
                     <MudButton OnClick="DoUpdateProfile" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Refresh" Color="Color.Primary">Generate Schedules</MudButton>
                     <MudButton OnClick="DoExport" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Primary">Export</MudButton>
                 </MudStack>
-                @GridsToShow
+                <div class="vertical-scroll">
+                    @GridsToShow
+                </div>
             </MudItem>
         </MudGrid>
     </MudMainContent>

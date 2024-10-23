@@ -22,6 +22,12 @@
     padding-right: 2em !important;
 }
 
+.vertical-scroll {
+    height: calc(100vh - 50px);
+    overflow-x: scroll;
+    overflow-y: scroll;
+}
+
 .markdown-table {
     border: 1px solid #777;
     margin-left: 2em;

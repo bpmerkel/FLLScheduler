@@ -6,6 +6,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text;
 using Markdig;
+using System.Collections;
+using System.Text.RegularExpressions;
+using System.Dynamic;
 
 namespace FLLScheduler.Pages;
 
@@ -23,7 +26,7 @@ public partial class Index
     /// Gets or sets the browser viewport service.
     /// </summary>
     [Inject] private IBrowserViewportService BrowserViewportService { get; set; }
-    [Inject] private HttpClient HttpClient { get; set; }
+    [Inject] private IHttpClientFactory clientFactory { get; set; }
 
     private RequestModel Profile { get; set; }
     private TimeSpan? RegistrationTime { get; set; }
@@ -44,6 +47,7 @@ public partial class Index
     private string Teams { get; set; }
     private MarkupString GridsToShow { get; set; }
     private readonly MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+    private ResponseModel Response;
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -134,128 +138,104 @@ public partial class Index
 
     private async Task ServerReload()
     {
+        var httpClient = clientFactory.CreateClient("API");
         var json = new StringContent(JsonSerializer.Serialize(Profile), Encoding.UTF8, "application/json");
-        using var response = await HttpClient.PostAsync("api/CalculateSchedule", json);
+        using var response = await httpClient.PostAsync("api/CalculateSchedule", json);
         if (response.IsSuccessStatusCode)
         {
             var responseModel = await response.Content.ReadFromJsonAsync<ResponseModel>();
-            ShowResults(responseModel);
+            Response = responseModel;
+            ShowResults();
         }
     }
 
-    private void ShowResults(ResponseModel response)
+    private enum PivotType
     {
-        var master = response.Schedule;
+        Registration,
+        TeamSchedule,
+        JudgingQueuingSchedule,
+        JudgingSchedule,
+        PodJudgingSchedule,
+        RobotGameQueuingSchedule,
+        RobotGameSchedule,
+        RobotGameTableSchedule
+    }
 
-        var md = new StringBuilder();
-        md.AppendLine($"# {response.Request.Name}{{#name .profile-name .mud-typography .mud-typography-h4}}");
-        md.AppendLine($"## Generated {response.GeneratedUtc.ToLocalTime():dddd MMM-dd h\\:mm tt}{{#time .profile-time .mud-typography .mud-typography-h5}}");
-        md.AppendLine();
+    private List<(string pivot, PivotType pivotType, Array data)> GeneratePivots()
+    {
+        var d = new List<(string pivot, PivotType pivotType, Array data)>();
+        var master = Response.Schedule;
+        d.Add(("Registration", PivotType.Registration, master
+            .OrderBy(s => s.Number)
+            .Select(s => new RegistrationEntry
+            {
+                Team = s.Number,
+                Name = s.Name,
+                Roster = string.Empty
+            })
+            .ToArray()));
 
-        md.AppendLine("### Registration{.mud-typography .mud-typography-h6}");
-        md.AppendLine("{#registration-table .markdown-table}");
-        md.AppendLine("|Team|Name|Roster|Coach 1|Coach 2|");
-        md.AppendLine("|:--:|:---|-----:|:------|:------|");
-        foreach (var s in master.OrderBy(s => s.Number))
-        {
-            md.AppendLine($"|{s.Number}|{s.Name}| | | |");
-        }
-        md.AppendLine();
+        d.Add(("Team Schedule", PivotType.TeamSchedule, master
+            .OrderBy(s => s.Number)
+            .Select(s => new TeamScheduleEntry
+            {
+                Team = s.Number,
+                Name = s.Name,
+                Judging = s.JudgingStart,
+                Pod = s.JudgingPod,
+                Practice = s.PracticeStart,
+                PracticeTable = s.PracticeTable,
+                Match1 = s.Match1Start,
+                Match1Table = s.Match1Table,
+                Match2 = s.Match2Start,
+                Match2Table = s.Match2Table,
+                Match3 = s.Match3Start,
+                Match3Table = s.Match3Table
+            })
+            .ToArray()));
 
-        md.AppendLine("### Team Schedule{.mud-typography .mud-typography-h6}");
-        md.AppendLine("{#team-table .markdown-table}");
-        md.AppendLine("|Team|Name|Judging|Pod|Practice|Practice Table|Match 1|Match 1 Table|Match 2|Match 2 Table|Match 3|Match 3 Table|");
-        md.AppendLine("|:--:|:---|------:|:--|-------:|:------------:|------:|:-----------:|------:|:-----------:|------:|:-----------:|");
-        foreach (var s in master.OrderBy(s => s.Number))
-        {
-            md.Append($"|{s.Number}|{s.Name}|{s.JudgingStart:h\\:mm tt}|{s.JudgingPod}");
-            md.Append($"|{s.PracticeStart:h\\:mm tt}|{s.PracticeTable}");
-            md.Append($"|{s.Match1Start:h\\:mm tt}|{s.Match1Table}");
-            md.Append($"|{s.Match2Start:h\\:mm tt}|{s.Match2Table}");
-            md.AppendLine($"|{s.Match3Start:h\\:mm tt}|{s.Match3Table}|");
-        }
-        md.AppendLine();
-
-        var judgingqueue = master
-            .Select(s => new
+        d.Add(("Judging Queuing Schedule", PivotType.JudgingQueuingSchedule, master
+            .Select(s => new JudgingQueuingEntry
             {
                 QueueTime = s.JudgingStart.AddMinutes(-5),
-                s.JudgingStart,
-                s.JudgingPod,
-                s.Number,
-                s.Name
+                Team = s.Number,
+                Name = s.Name,
+                Judging = s.JudgingStart,
+                Pod = s.JudgingPod
             })
             .OrderBy(s => s.QueueTime)
-            .ThenBy(s => s.JudgingPod)
-            .ToArray();
+            .ThenBy(s => s.Pod)
+            .ToArray()));
 
-        md.AppendLine();
-        md.AppendLine("### Judging Queuing Schedule{.mud-typography .mud-typography-h6}");
-        md.AppendLine("{#judging-queuer-table .markdown-table}");
-        md.AppendLine("|Queue Time|Team|Name|Judging|Pod|");
-        md.AppendLine("|---------:|:--:|:---|------:|:--|");
-        foreach (var qe in judgingqueue)
-        {
-            md.AppendLine($"|{qe.QueueTime:h\\:mm tt}|{qe.Number}|{qe.Name}|{qe.JudgingStart:h\\:mm tt}|{qe.JudgingPod}|");
-        }
-        md.AppendLine();
-
-        var judging = master
+        d.Add(("Judging Schedule", PivotType.JudgingSchedule, master
             .GroupBy(t => t.JudgingStart)
             .Select(g => new { Time = g.Key, Sessions = g.ToArray() })
             .Select(e =>
             {
-                var schedule = new { e.Time, Columns = new List<(string pod, string team)>() };
-                foreach (var pod in response.Request.Judging.Pods)
+                var schedule = new FlexEntry { Time = e.Time, Columns = [] };
+                foreach (var pod in Response.Request.Judging.Pods)
                 {
-                    var assignment = e.Sessions.FirstOrDefault(g => g.JudgingPod == pod);
-                    schedule.Columns.Add((pod, team: assignment == null
+                    var assignment = e.Sessions.FirstOrDefault(s => s.JudgingPod == pod);
+                    schedule.Columns.Add(assignment == null
                         ? "-"
-                        : $"{assignment.Number} - {assignment.Name}"));
+                        : $"{assignment.Number} - {assignment.Name}");
                 }
                 return schedule;
             })
-            .ToArray();
+            .ToArray()));
 
-        md.AppendLine();
-        md.AppendLine("### Judging Schedule{.mud-typography .mud-typography-h6}");
-        md.AppendLine("{#pod-table .markdown-table}");
-        md.AppendLine("|Time|" + string.Join("|", response.Request.Judging.Pods) + "|");
-        md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", response.Request.Judging.Pods.Length)));
-        foreach (var s in judging)
+        foreach (var pod in Response.Request.Judging.Pods)
         {
-            md.Append($"|{s.Time:h\\:mm tt}");
-            foreach (var (pod, team) in s.Columns)
-            {
-                md.Append($"|{team}");
-            }
-            md.AppendLine("|");
-        }
-        md.AppendLine();
-
-        foreach (var pod in response.Request.Judging.Pods)
-        {
-            var podschedule = master
+            d.Add(($"{pod} Judging Schedule", PivotType.PodJudgingSchedule, master
                 .Where(s => s.JudgingPod == pod)
                 .OrderBy(s => s.JudgingStart)
-                .Select(s => new
+                .Select(s => new PodJudgingEntry
                 {
-                    s.JudgingStart,
-                    s.Number,
-                    s.Name
+                    Time = s.JudgingStart,
+                    Team = s.Number,
+                    Name = s.Name
                 })
-                .ToArray();
-
-            md.AppendLine();
-            md.AppendLine($"### {pod} Judging Schedule{{.mud-typography .mud-typography-h6}}");
-            md.AppendLine("{#judging-table .markdown-table}");
-            md.AppendLine("|Time|Team|Name|");
-            md.AppendLine("|---:|:----:|:---|");
-            foreach (var s in podschedule)
-            {
-                md.AppendLine($"|{s.JudgingStart:h\\:mm tt}|{s.Number}|{s.Name}|");
-            }
-            md.AppendLine();
+                .ToArray()));
         }
 
         var games = master
@@ -294,85 +274,163 @@ public partial class Index
                     s.Name,
                     Match = "3"
                 }))
-            .Select(e => new
+            .Select(e => new RobotGameQueuingEntry
             {
                 QueueTime = e.Time.AddMinutes(-5),
-                e.Number,
-                e.Name,
+                Team = e.Number,
+                Name = e.Name,
                 MatchTime = e.Time,
-                e.Match,
-                e.Table
+                Match = e.Match,
+                Table = e.Table
             })
             .OrderBy(e => e.QueueTime)
             // order tables in the order given in the request
-            .ThenBy(e => response.Request.RobotGame.Tables.Select((t, i) => (t, i)).First(ee => ee.t == e.Table).i)
+            .ThenBy(e => Response.Request.RobotGame.Tables.Select((t, i) => (t, i)).First(ee => ee.t == e.Table).i)
             .ToArray();
-
-        md.AppendLine();
-        md.AppendLine("### Robot Game Queuing Schedule{.mud-typography .mud-typography-h6}");
-        md.AppendLine("{#queuer-table .markdown-table}");
-        md.AppendLine("|Queue Time|Team|Name|Match Time|Match|Table|");
-        md.AppendLine("|---------:|:--:|:---|---------:|:---:|:----|");
-        foreach (var qe in games)
-        {
-            md.AppendLine($"|{qe.QueueTime:h\\:mm tt}|{qe.Number}|{qe.Name}|{qe.MatchTime:h\\:mm tt}|{qe.Match}|{qe.Table}|");
-        }
-        md.AppendLine();
+        d.Add(("Robot Game Queuing Schedule", PivotType.RobotGameQueuingSchedule, games));
 
         var combined = games
             .GroupBy(game => game.MatchTime)
             .Select(g => new { Time = g.Key, Games = g.ToArray() })
             .Select(e =>
             {
-                var schedule = new { e.Time, Columns = new List<(string table, string team)>() };
-                foreach (var table in response.Request.RobotGame.Tables)
+                var schedule = new FlexEntry { Time = e.Time, Columns = [] };
+                foreach (var table in Response.Request.RobotGame.Tables)
                 {
                     var assignment = e.Games.FirstOrDefault(g => g.Table == table);
-                    schedule.Columns.Add((table, team: assignment == null
+                    schedule.Columns.Add(assignment == null
                         ? "-"
-                        : $"{assignment.Number} - {assignment.Name} ({assignment.Match})"));
+                        : $"{assignment.Team} - {assignment.Name} ({assignment.Match})");
                 }
                 return schedule;
             })
             .ToArray();
+        d.Add(("Robot Game Schedule", PivotType.RobotGameSchedule, combined));
 
-        md.AppendLine();
-        md.AppendLine("### Robot Game Schedule{.mud-typography .mud-typography-h6}");
-        md.AppendLine("{#game-table .markdown-table}");
-        md.AppendLine("|Time|" + string.Join("|", response.Request.RobotGame.Tables) + "|");
-        md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", response.Request.RobotGame.Tables.Length)));
-        foreach (var s in combined)
-        {
-            md.Append($"|{s.Time:h\\:mm tt}");
-            foreach (var (table, team) in s.Columns)
-            {
-                md.Append($"|{team}");
-            }
-            md.AppendLine("|");
-        }
-        md.AppendLine();
-
-        foreach (var table in response.Request.RobotGame.Tables)
+        foreach (var table in Response.Request.RobotGame.Tables)
         {
             var gamesattable = games
                 .Where(g => g.Table == table)
-                .Select(g => new
+                .Select(g => new RobotGameTableEntry
                 {
-                    g.MatchTime,
-                    g.Number,
-                    g.Name,
-                    g.Match
+                    MatchTime = g.MatchTime,
+                    Team = g.Team,
+                    Name = g.Name,
+                    Match = g.Match
                 })
                 .OrderBy(g => g.MatchTime)
                 .ToArray();
-            md.AppendLine();
-            md.AppendLine($"### {table} Robot Game Table Schedule{{.mud-typography .mud-typography-h6}}");
-            md.AppendLine("{#game-table-table .markdown-table}");
-            md.AppendLine("|Match Time|Team|Name|Match|");
-            md.AppendLine("|---------:|:----:|:---|:---:|");
-            foreach (var s in gamesattable)
+            d.Add(($"{table} Robot Game Table Schedule", PivotType.RobotGameTableSchedule, gamesattable));
+        }
+        return d;
+    }
+
+    private void ShowResults()
+    {
+        var pivots = GeneratePivots();
+        var md = new StringBuilder();
+        md.AppendLine($"# {Response.Request.Name}{{#name .profile-name .mud-typography .mud-typography-h4}}");
+        md.AppendLine($"## Generated {Response.GeneratedUtc.ToLocalTime():dddd MMM-dd h\\:mm tt}{{#time .profile-time .mud-typography .mud-typography-h5}}");
+        md.AppendLine();
+
+        foreach (var (name, pivotType, data) in pivots)
+        {
+            switch (pivotType)
             {
-                md.AppendLine($"|{s.MatchTime:h\\:mm tt}|{s.Number}|{s.Name}|{s.Match}");
+                case PivotType.Registration:
+                    md.AppendLine("### Registration{.mud-typography .mud-typography-h6}");
+                    md.AppendLine("{#registration-table .markdown-table}");
+                    md.AppendLine("|Team|Name|Roster|Coach 1|Coach 2|");
+                    md.AppendLine("|:--:|:---|-----:|:------|:------|");
+                    foreach (var s in data.Cast<RegistrationEntry>())
+                    {
+                        md.AppendLine($"|{s.Team}|{s.Name}| | | |");
+                    }
+                    break;
+                case PivotType.TeamSchedule:
+                    md.AppendLine("### Team Schedule{.mud-typography .mud-typography-h6}");
+                    md.AppendLine("{#team-table .markdown-table}");
+                    md.AppendLine("|Team|Name|Judging|Pod|Practice|Practice Table|Match 1|Match 1 Table|Match 2|Match 2 Table|Match 3|Match 3 Table|");
+                    md.AppendLine("|:--:|:---|------:|:--|-------:|:------------:|------:|:-----------:|------:|:-----------:|------:|:-----------:|");
+                    foreach (var s in data.Cast<TeamScheduleEntry>())
+                    {
+                        md.Append($"|{s.Team}|{s.Name}|{s.Judging:h\\:mm tt}|{s.Pod}");
+                        md.Append($"|{s.Practice:h\\:mm tt}|{s.PracticeTable}");
+                        md.Append($"|{s.Match1:h\\:mm tt}|{s.Match1Table}");
+                        md.Append($"|{s.Match2:h\\:mm tt}|{s.Match2Table}");
+                        md.AppendLine($"|{s.Match3:h\\:mm tt}|{s.Match3Table}|");
+                    }
+                    break;
+                case PivotType.JudgingQueuingSchedule:
+                    md.AppendLine("### Judging Queuing Schedule{.mud-typography .mud-typography-h6}");
+                    md.AppendLine("{#judging-queuer-table .markdown-table}");
+                    md.AppendLine("|Queue Time|Team|Name|Judging|Pod|");
+                    md.AppendLine("|---------:|:--:|:---|------:|:--|");
+                    foreach (var s in data.Cast<JudgingQueuingEntry>())
+                    {
+                        md.AppendLine($"|{s.QueueTime:h\\:mm tt}|{s.Team}|{s.Name}|{s.Judging:h\\:mm tt}|{s.Pod}|");
+                    }
+                    break;
+                case PivotType.JudgingSchedule:
+                    md.AppendLine("### Judging Schedule{.mud-typography .mud-typography-h6}");
+                    md.AppendLine("{#pod-table .markdown-table}");
+                    md.AppendLine("|Time|" + string.Join("|", Response.Request.Judging.Pods) + "|");
+                    md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", Response.Request.Judging.Pods.Length)));
+                    foreach (var s in data.Cast<FlexEntry>())
+                    {
+                        md.Append($"|{s.Time:h\\:mm tt}");
+                        foreach (var team in s.Columns)
+                        {
+                            md.Append($"|{team}");
+                        }
+                        md.AppendLine("|");
+                    }
+                    break;
+                case PivotType.PodJudgingSchedule:
+                    md.AppendLine($"### {name}{{.mud-typography .mud-typography-h6}}");
+                    md.AppendLine("{#judging-table .markdown-table}");
+                    md.AppendLine("|Time|Team|Name|");
+                    md.AppendLine("|---:|:----:|:---|");
+                    foreach (var s in data.Cast<PodJudgingEntry>())
+                    {
+                        md.AppendLine($"|{s.Time:h\\:mm tt}|{s.Team}|{s.Name}|");
+                    }
+                    break;
+                case PivotType.RobotGameQueuingSchedule:
+                    md.AppendLine("### Robot Game Queuing Schedule{.mud-typography .mud-typography-h6}");
+                    md.AppendLine("{#queuer-table .markdown-table}");
+                    md.AppendLine("|Queue Time|Team|Name|Match Time|Match|Table|");
+                    md.AppendLine("|---------:|:--:|:---|---------:|:---:|:----|");
+                    foreach (var qe in data.Cast<RobotGameQueuingEntry>())
+                    {
+                        md.AppendLine($"|{qe.QueueTime:h\\:mm tt}|{qe.Team}|{qe.Name}|{qe.MatchTime:h\\:mm tt}|{qe.Match}|{qe.Table}|");
+                    }
+                    break;
+                case PivotType.RobotGameSchedule:
+                    md.AppendLine("### Robot Game Schedule{.mud-typography .mud-typography-h6}");
+                    md.AppendLine("{#game-table .markdown-table}");
+                    md.AppendLine("|Time|" + string.Join("|", Response.Request.RobotGame.Tables) + "|");
+                    md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", Response.Request.RobotGame.Tables.Length)));
+                    foreach (var s in data.Cast<FlexEntry>())
+                    {
+                        md.Append($"|{s.Time:h\\:mm tt}");
+                        foreach (var team in s.Columns)
+                        {
+                            md.Append($"|{team}");
+                        }
+                        md.AppendLine("|");
+                    }
+                    break;
+                case PivotType.RobotGameTableSchedule:
+                    md.AppendLine($"### {name}{{.mud-typography .mud-typography-h6}}");
+                    md.AppendLine("{#game-table-table .markdown-table}");
+                    md.AppendLine("|Match Time|Team|Name|Match|");
+                    md.AppendLine("|---------:|:----:|:---|:---:|");
+                    foreach (var s in data.Cast<RobotGameTableEntry>())
+                    {
+                        md.AppendLine($"|{s.MatchTime:h\\:mm tt}|{s.Team}|{s.Name}|{s.Match}");
+                    }
+                    break;
             }
             md.AppendLine();
         }
@@ -382,6 +440,10 @@ public partial class Index
 
     private async Task DoExport()
     {
+        if (Response == null) return;
+        var pivots = GeneratePivots();
+        // TODO: export to Excel using ClosedXml
+
         await Task.Delay(1);
     }
 
@@ -522,4 +584,67 @@ public partial class Index
             Teams = allteams
         };
     }
+}
+
+public class RegistrationEntry
+{
+    public string Team { get; set; }
+    public string Name { get; set; }
+    public string Roster { get; set; }
+}
+
+public class TeamScheduleEntry
+{
+    public string Team { get; set; }
+    public string Name { get; set; }
+    public TimeOnly Judging { get; set; }
+    public string Pod { get; set; }
+    public TimeOnly Practice { get; set; }
+    public string PracticeTable { get; set; }
+    public TimeOnly Match1 { get; set; }
+    public string Match1Table { get; set; }
+    public TimeOnly Match2 { get; set; }
+    public string Match2Table { get; set; }
+    public TimeOnly Match3 { get; set; }
+    public string Match3Table { get; set; }
+}
+
+public class JudgingQueuingEntry
+{
+    public TimeOnly QueueTime { get; set; }
+    public string Team { get; set; }
+    public string Name { get; set; }
+    public TimeOnly Judging { get; set; }
+    public string Pod { get; set; }
+}
+
+public class PodJudgingEntry
+{
+    public TimeOnly Time { get; set; }
+    public string Team { get; set; }
+    public string Name { get; set; }
+}
+
+public class RobotGameQueuingEntry
+{
+    public TimeOnly QueueTime { get; set; }
+    public string Team { get; set; }
+    public string Name { get; set; }
+    public TimeOnly MatchTime { get; set; }
+    public string Match { get; set; }
+    public string Table { get; set; }
+}
+
+public class RobotGameTableEntry
+{
+    public TimeOnly MatchTime { get; set; }
+    public string Team { get; set; }
+    public string Name { get; set; }
+    public string Match { get; set; }
+}
+
+public class FlexEntry
+{
+    public TimeOnly Time { get; set; }
+    public List<string> Columns { get; set; }
 }
