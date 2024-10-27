@@ -49,6 +49,7 @@ public partial class Index
     private MarkupString GridsToShow { get; set; }
     private readonly MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
     private ResponseModel Response;
+    private bool exporting = false;
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -441,60 +442,65 @@ public partial class Index
 
     [Inject] IBlazorDownloadFileService BlazorDownloadFileService { get; set; }
 
-    // TODO: export to Excel using ClosedXml
+    // export to Excel using ClosedXml
     private async Task DoExport()
     {
         if (Response == null) return;
-        var pivots = GeneratePivots();
-        var wb = new XLWorkbook();
-        foreach (var (name, pivotType, data) in pivots)
+        exporting = true;
+        await Task.Run(async () =>
         {
-            var wsname = name.Replace(" Schedule", string.Empty);
-            var ws = wb.AddWorksheet(wsname);
-            var cell = ws.Cell(1, 1);
-
-            IXLTable table;
-            switch (pivotType)
+            var pivots = GeneratePivots();
+            var wb = new XLWorkbook();
+            foreach (var (name, pivotType, data) in pivots)
             {
-                case PivotType.Registration:
-                    table = cell.InsertTable(data.Cast<RegistrationEntry>(), true);
-                    break;
-                case PivotType.TeamSchedule:
-                    table = cell.InsertTable(data.Cast<TeamScheduleEntry>(), true);
-                    break;
-                case PivotType.JudgingQueuingSchedule:
-                    table = cell.InsertTable(data.Cast<JudgingQueuingEntry>(), true);
-                    break;
-                case PivotType.JudgingSchedule:
-                    table = cell.InsertTable(FlexEntry.Pivot(data), true);
-                    ClosedXMLHelpers.FixFlexTable(table);
-                    break;
-                case PivotType.PodJudgingSchedule:
-                    table = cell.InsertTable(data.Cast<PodJudgingEntry>(), true);
-                    break;
-                case PivotType.RobotGameQueuingSchedule:
-                    table = cell.InsertTable(data.Cast<RobotGameQueuingEntry>(), true);
-                    break;
-                case PivotType.RobotGameSchedule:
-                    table = cell.InsertTable(FlexEntry.Pivot(data), true);
-                    ClosedXMLHelpers.FixFlexTable(table);
-                    break;
-                case PivotType.RobotGameTableSchedule:
-                    table = cell.InsertTable(data.Cast<RobotGameTableEntry>(), true);
-                    break;
-                default:
-                    throw new ApplicationException();
-            };
+                var wsname = name.Replace(" Schedule", string.Empty);
+                var ws = wb.AddWorksheet(wsname);
+                var cell = ws.Cell(1, 1);
 
-            ClosedXMLHelpers.FixStyles(table);
-            table.SetShowAutoFilter(false);
-            ws.Columns().AdjustToContents();
-        }
+                IXLTable table;
+                switch (pivotType)
+                {
+                    case PivotType.Registration:
+                        table = cell.InsertTable(data.Cast<RegistrationEntry>(), true);
+                        break;
+                    case PivotType.TeamSchedule:
+                        table = cell.InsertTable(data.Cast<TeamScheduleEntry>(), true);
+                        break;
+                    case PivotType.JudgingQueuingSchedule:
+                        table = cell.InsertTable(data.Cast<JudgingQueuingEntry>(), true);
+                        break;
+                    case PivotType.JudgingSchedule:
+                        table = cell.InsertTable(FlexEntry.Pivot(data), true);
+                        ClosedXMLHelpers.FixFlexTable(table);
+                        break;
+                    case PivotType.PodJudgingSchedule:
+                        table = cell.InsertTable(data.Cast<PodJudgingEntry>(), true);
+                        break;
+                    case PivotType.RobotGameQueuingSchedule:
+                        table = cell.InsertTable(data.Cast<RobotGameQueuingEntry>(), true);
+                        break;
+                    case PivotType.RobotGameSchedule:
+                        table = cell.InsertTable(FlexEntry.Pivot(data), true);
+                        ClosedXMLHelpers.FixFlexTable(table);
+                        break;
+                    case PivotType.RobotGameTableSchedule:
+                        table = cell.InsertTable(data.Cast<RobotGameTableEntry>(), true);
+                        break;
+                    default:
+                        throw new ApplicationException();
+                };
 
-        using var ms = new MemoryStream();
-        wb.SaveAs(ms);
-        await BlazorDownloadFileService.DownloadFile("Schedules.xlsx", ms, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        ms.Flush();
+                ClosedXMLHelpers.FixStyles(table);
+                table.SetShowAutoFilter(false);
+                ws.Columns().AdjustToContents();
+            }
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            await BlazorDownloadFileService.DownloadFile("Schedules.xlsx", ms, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            ms.Flush();
+            exporting = false;
+        });
     }
 
     private async Task<IEnumerable<RequestModel>> IdentifyProfiles(string value, CancellationToken token)
