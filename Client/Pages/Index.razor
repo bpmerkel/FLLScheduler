@@ -16,7 +16,7 @@
             @if (!IsSmallScreen)
             {
                 <MudSpacer />
-                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Help" Color="Color.Success" @onclick="OpenWelcomeDialog">Welcome</MudButton>
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Help" Color="Color.Warning" @onclick="OpenWelcomeDialog">Welcome</MudButton>
             }
         </MudAppBar>
 
@@ -71,7 +71,7 @@
             <MudItem xs="7">
                 <MudStack Row="true">
                     <MudButton OnClick="DoUpdateProfile" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Refresh" Color="Color.Primary">Generate Schedules</MudButton>
-                    <MudButton Disabled="@exporting" OnClick="DoExport" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Primary">
+                    <MudButton Disabled="@exporting" OnClick="DoExport" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Tertiary">
                         @if (exporting)
                         {
                             <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />

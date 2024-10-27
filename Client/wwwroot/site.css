@@ -28,6 +28,10 @@
     overflow-y: scroll;
 }
 
+.mud-typography-h6 {
+    color: #ffa800 !important;
+}
+
 .markdown-table {
     border: 1px solid #777;
     margin-left: 2em;
@@ -37,8 +41,8 @@
         padding-left: 1em;
         padding-right: 1em;
         color: #fff;
-        background-color: #006;
-        border-bottom: 2px solid #002;
+        background-color: #7C4DFF;
+        border-bottom: 2px solid #311B92;
         white-space: nowrap;
     }
     .markdown-table td {
@@ -47,6 +51,6 @@
         padding-right: 1em;
         white-space: nowrap;
     }
-    .markdown-table tbody tr:nth-child(odd) {
-        background-color: #004;
+    .markdown-table tbody tr:nth-child(even) {
+        background-color: #7C4DFF;
     }
