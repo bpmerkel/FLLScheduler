@@ -6,9 +6,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text;
 using Markdig;
-using System.Collections;
-using System.Text.RegularExpressions;
 using System.Dynamic;
+using ClosedXML.Excel;
+using BlazorDownloadFile;
+using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace FLLScheduler.Pages;
 
@@ -212,11 +213,11 @@ public partial class Index
             .Select(g => new { Time = g.Key, Sessions = g.ToArray() })
             .Select(e =>
             {
-                var schedule = new FlexEntry { Time = e.Time, Columns = [] };
-                foreach (var pod in Response.Request.Judging.Pods)
+                var schedule = new FlexEntry { Time = e.Time, Columns = Response.Request.Judging.Pods, Row = [] };
+                foreach (var pod in schedule.Columns)
                 {
                     var assignment = e.Sessions.FirstOrDefault(s => s.JudgingPod == pod);
-                    schedule.Columns.Add(assignment == null
+                    schedule.Row.Add(assignment == null
                         ? "-"
                         : $"{assignment.Number} - {assignment.Name}");
                 }
@@ -294,11 +295,11 @@ public partial class Index
             .Select(g => new { Time = g.Key, Games = g.ToArray() })
             .Select(e =>
             {
-                var schedule = new FlexEntry { Time = e.Time, Columns = [] };
-                foreach (var table in Response.Request.RobotGame.Tables)
+                var schedule = new FlexEntry { Time = e.Time, Columns = Response.Request.RobotGame.Tables, Row = [] };
+                foreach (var table in schedule.Columns)
                 {
                     var assignment = e.Games.FirstOrDefault(g => g.Table == table);
-                    schedule.Columns.Add(assignment == null
+                    schedule.Row.Add(assignment == null
                         ? "-"
                         : $"{assignment.Team} - {assignment.Name} ({assignment.Match})");
                 }
@@ -438,13 +439,62 @@ public partial class Index
         GridsToShow = (MarkupString)Markdown.ToHtml(md.ToString(), pipeline);
     }
 
+    [Inject] IBlazorDownloadFileService BlazorDownloadFileService { get; set; }
+
+    // TODO: export to Excel using ClosedXml
     private async Task DoExport()
     {
         if (Response == null) return;
         var pivots = GeneratePivots();
-        // TODO: export to Excel using ClosedXml
+        var wb = new XLWorkbook();
+        foreach (var (name, pivotType, data) in pivots)
+        {
+            var wsname = name.Replace(" Schedule", string.Empty);
+            var ws = wb.AddWorksheet(wsname);
+            var cell = ws.Cell(1, 1);
 
-        await Task.Delay(1);
+            IXLTable table;
+            switch (pivotType)
+            {
+                case PivotType.Registration:
+                    table = cell.InsertTable(data.Cast<RegistrationEntry>(), true);
+                    break;
+                case PivotType.TeamSchedule:
+                    table = cell.InsertTable(data.Cast<TeamScheduleEntry>(), true);
+                    break;
+                case PivotType.JudgingQueuingSchedule:
+                    table = cell.InsertTable(data.Cast<JudgingQueuingEntry>(), true);
+                    break;
+                case PivotType.JudgingSchedule:
+                    table = cell.InsertTable(FlexEntry.Pivot(data), true);
+                    ClosedXMLHelpers.FixFlexTable(table);
+                    break;
+                case PivotType.PodJudgingSchedule:
+                    table = cell.InsertTable(data.Cast<PodJudgingEntry>(), true);
+                    break;
+                case PivotType.RobotGameQueuingSchedule:
+                    table = cell.InsertTable(data.Cast<RobotGameQueuingEntry>(), true);
+                    break;
+                case PivotType.RobotGameSchedule:
+                    table = cell.InsertTable(FlexEntry.Pivot(data), true);
+                    ClosedXMLHelpers.FixFlexTable(table);
+                    break;
+                case PivotType.RobotGameTableSchedule:
+                    table = cell.InsertTable(data.Cast<RobotGameTableEntry>(), true);
+                    break;
+                default:
+                    throw new ApplicationException();
+            };
+
+            ClosedXMLHelpers.FixStyles(table);
+            table.SetShowAutoFilter(false);
+            ws.Columns().AdjustToContents();
+        }
+
+        using var ms = new MemoryStream();
+        wb.SaveAs(ms);
+        await BlazorDownloadFileService.DownloadFile("Schedules.xlsx", ms, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        ms.Flush();
     }
 
     private async Task<IEnumerable<RequestModel>> IdentifyProfiles(string value, CancellationToken token)
@@ -646,5 +696,79 @@ public class RobotGameTableEntry
 public class FlexEntry
 {
     public TimeOnly Time { get; set; }
-    public List<string> Columns { get; set; }
+    public string[] Columns { get; set; }
+    public List<string> Row { get; set; }
+
+    private ExpandoObject ToFlex()
+    {
+        var ex = new ExpandoObject();
+        ex.TryAdd(nameof(Time), Time);
+        for (var i = 0; i < Columns.Length; i++)
+        {
+            ex.TryAdd(Columns[i], Row[i]);
+        }
+        return ex;
+    }
+
+    public static List<ExpandoObject> Pivot(Array data) => data.Cast<FlexEntry>().Select(e => e.ToFlex()).ToList();
+}
+
+public static class ClosedXMLHelpers
+{
+    public static void FixFlexTable(IXLTable table)
+    {
+        var range = table.AsRange();
+        for (var rowidx = 1; rowidx <= range.RowCount(); rowidx++)
+        {
+            if (rowidx == 1)
+            {
+                // set row 1 to be column names from row 2
+                var targetrow = range.Row(1);
+                var sourcerow = range.Row(2);
+                for (var cidx = 1; cidx <= targetrow.CellCount(); cidx++)
+                {
+                    var ct = targetrow.Cell(cidx);
+                    var cs = sourcerow.Cell(cidx);
+                    var values = cs.GetValue<string>().Split("[];,".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    ct.SetValue(values[0]);
+                }
+            }
+            else
+            {
+                // convert the value
+                var row = range.Row(rowidx);
+                foreach (var c in row.Cells())
+                {
+                    var values = c.GetValue<string>().Split("[];,".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    c.SetValue(values[1]);
+                }
+            }
+        }
+    }
+
+    public static void FixStyles(IXLTable table)
+    {
+        // walk all cells and convert the cell to numeric or DateTime
+        var cells = table.CellsUsed();
+        foreach (var cell in cells)
+        {
+            var value = cell.GetValue<string>();
+            if (int.TryParse(value, out int numericValue))
+            {
+                cell.SetValue(numericValue);
+                cell.Style.NumberFormat.Format = "#####0";
+                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            }
+            else if (DateTime.TryParse(value, out DateTime timeValue))
+            {
+                cell.SetValue(timeValue);
+                cell.Style.NumberFormat.Format = "h:mm AM/PM";
+                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            }
+            else if (value.Length == 1)
+            {
+                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            }
+        }
+    }
 }
