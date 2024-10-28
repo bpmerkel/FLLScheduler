@@ -785,18 +785,13 @@ public static partial class ClosedXMLHelpers
             {
                 cell.SetValue(numericValue);
                 cell.Style.NumberFormat.Format = "#####0";
-                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             }
             else if (DateTime.TryParse(value, out DateTime timeValue))
             {
                 cell.SetValue(timeValue);
                 cell.Style.NumberFormat.Format = "h:mm AM/PM";
-                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             }
-            else if (value.Length == 1)
-            {
-                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            }
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         }
     }
 
