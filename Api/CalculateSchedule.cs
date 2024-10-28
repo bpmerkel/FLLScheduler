@@ -27,7 +27,6 @@ public class CalculateScheduleApi
     public static async Task<HttpResponseData> CalculateSchedule([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req, FunctionContext executionContext)
     {
         var sw = Stopwatch.StartNew();
-        var rnd = new Random(0);    // always seed with same value for deterministic results
 
         var logger = executionContext.GetLogger("HttpTrigger1");
         logger.LogInformation("CalculateSchedule function processed a request.");
@@ -190,7 +189,7 @@ public class CalculateScheduleApi
 
 class WorkingTeam
 {
-    public string Number { get; init; }
+    public int Number { get; init; }
     public string Name { get; init; }
     public TimeOnly JudgingStart { get; set; }
     public string JudgingPod { get; set; }

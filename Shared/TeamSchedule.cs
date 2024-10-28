@@ -2,7 +2,7 @@
 
 public class TeamSchedule
 {
-    public string Number { get; set; }
+    public int Number { get; set; }
     public string Name { get; set; }
     public TimeOnly JudgingStart { get; set; }
     public string JudgingPod { get; set; }

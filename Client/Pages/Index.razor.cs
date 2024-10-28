@@ -10,6 +10,8 @@ using System.Dynamic;
 using ClosedXML.Excel;
 using BlazorDownloadFile;
 using DocumentFormat.OpenXml.Spreadsheet;
+using System.Text.RegularExpressions;
+using static MudBlazor.Components.Chart.Models.TimeSeriesChartSeries;
 
 namespace FLLScheduler.Pages;
 
@@ -27,7 +29,7 @@ public partial class Index
     /// Gets or sets the browser viewport service.
     /// </summary>
     [Inject] private IBrowserViewportService BrowserViewportService { get; set; }
-    [Inject] private IHttpClientFactory clientFactory { get; set; }
+    [Inject] private IHttpClientFactory ClientFactory { get; set; }
 
     private RequestModel Profile { get; set; }
     private TimeSpan? RegistrationTime { get; set; }
@@ -46,6 +48,8 @@ public partial class Index
     private string Breaks { get; set; }
     private string TableNames { get; set; }
     private string Teams { get; set; }
+    private List<string> Errors = [];
+
     private MarkupString GridsToShow { get; set; }
     private readonly MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
     private ResponseModel Response;
@@ -83,23 +87,6 @@ public partial class Index
 
     private async Task DoUpdateProfile()
     {
-        ArgumentNullException.ThrowIfNull(RegistrationTime);
-        ArgumentNullException.ThrowIfNull(CoachesMeetingTime);
-        ArgumentNullException.ThrowIfNull(OpeningCeremonyTime);
-        ArgumentNullException.ThrowIfNull(LunchStartTime);
-        ArgumentNullException.ThrowIfNull(LunchEndTime);
-        ArgumentNullException.ThrowIfNull(JudgingStartTime);
-        ArgumentNullException.ThrowIfNull(RobotGamesStartTime);
-        ArgumentNullException.ThrowIfNullOrWhiteSpace(PodNames);
-        ArgumentNullException.ThrowIfNullOrWhiteSpace(TableNames);
-        ArgumentNullException.ThrowIfNullOrWhiteSpace(Teams);
-
-        //ArgumentOutOfRangeException.ThrowIfEqual(0, CycleTimeMinutes, nameof(CycleTimeMinutes));
-        //ArgumentOutOfRangeException.ThrowIfEqual(0, JudgingBufferMinutes, nameof(JudgingBufferMinutes));
-        //ArgumentOutOfRangeException.ThrowIfEqual(0, RobotGameCycleTimeMinutes, nameof(RobotGameCycleTimeMinutes));
-        //ArgumentOutOfRangeException.ThrowIfEqual(0, RobotGameBufferMinutes, nameof(RobotGameBufferMinutes));
-        //ArgumentOutOfRangeException.ThrowIfEqual(0, BreakDurationMinutes, nameof(BreakDurationMinutes));
-
         // generate an updated profile based on the modifications in the UI
         var profile = new RequestModel();
         profile.Event.RegistrationTime = TimeOnly.FromTimeSpan(RegistrationTime.Value);
@@ -121,11 +108,9 @@ public partial class Index
             .ToArray();
         profile.Teams = Teams.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(t => t.Split(",;\t ".ToCharArray(), 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .Select(pair => new Team { Number = pair[0], Name = pair[1] })
+            .Select(pair => new Team { Number = Convert.ToInt32(pair[0]), Name = pair[1] })
             .ToArray();
         profile.Name = $"Customized: {profile.Teams.Length} Teams, {profile.Judging.Pods.Length} Judging Pods, {profile.RobotGame.Tables.Length} Game Tables";
-
-        ArgumentOutOfRangeException.ThrowIfNotEqual(0, profile.RobotGame.Tables.Length % 2);    // ensure an even number of tables
 
         var existing = Profiles.FirstOrDefault(p => p.Name == profile.Name);
         if (existing != null)
@@ -140,7 +125,12 @@ public partial class Index
 
     private async Task ServerReload()
     {
-        var httpClient = clientFactory.CreateClient("API");
+        if (!ConfigIsValid())
+        {
+            return;
+        }
+
+        var httpClient = ClientFactory.CreateClient("API");
         var json = new StringContent(JsonSerializer.Serialize(Profile), Encoding.UTF8, "application/json");
         using var response = await httpClient.PostAsync("api/CalculateSchedule", json);
         if (response.IsSuccessStatusCode)
@@ -149,6 +139,26 @@ public partial class Index
             Response = responseModel;
             ShowResults();
         }
+    }
+
+    private bool ConfigIsValid()
+    {
+        Errors.Clear();
+        if (Profile == null) Errors.Add("Invalid configuration");
+        else if (Profile.Event == null) Errors.Add("Invalid Event configuration");
+        else if (Profile.Teams == null) Errors.Add("Invalid Teams configuration");
+        
+        if (Profile.Judging == null) Errors.Add("Invalid Judging configuration");
+        else if (Profile.Judging.Pods == null) Errors.Add("Invalid Judging Pods configuration");
+        else if (Profile.Judging.Pods.Length == 0) Errors.Add("Invalid Judging Pods configuration");
+        else if (Profile.Judging.Pods.Length < Profile.Teams.Length / 6d) Errors.Add($"Invalid Juding Pods configuration -- each pod can judge no more than 6 teams, so you need at least {Math.Ceiling(Profile.Teams.Length / 6d):0} judging pods");
+
+        if (Profile.RobotGame == null) Errors.Add("Invalid Robot Game configuration");
+        else if (Profile.RobotGame.Tables == null) Errors.Add("Invalid Robot Game Tables configuration");
+        else if (Profile.RobotGame.Tables.Length == 0) Errors.Add("Invalid Robot Game Tables configuration");
+        else if (Profile.RobotGame.Tables.Length % 2 != 0) Errors.Add("Invalid Robot Game Tables configuration -- you need an even number of tables");
+
+        return Errors.Count == 0;
     }
 
     private enum PivotType
@@ -381,7 +391,7 @@ public partial class Index
                     foreach (var s in data.Cast<FlexEntry>())
                     {
                         md.Append($"|{s.Time:h\\:mm tt}");
-                        foreach (var team in s.Columns)
+                        foreach (var team in s.Row)
                         {
                             md.Append($"|{team}");
                         }
@@ -416,7 +426,7 @@ public partial class Index
                     foreach (var s in data.Cast<FlexEntry>())
                     {
                         md.Append($"|{s.Time:h\\:mm tt}");
-                        foreach (var team in s.Columns)
+                        foreach (var team in s.Row)
                         {
                             md.Append($"|{team}");
                         }
@@ -600,7 +610,7 @@ public partial class Index
 
         var podcount = Convert.ToInt32(Math.Ceiling(teamcount / 6d));   // always a max of 6 teams judged per pod
         var allteams = Enumerable.Range(1001, teamcount)
-            .Select(i => new Team { Number = $"{i:0000}", Name = $"team {i:0000}" })
+            .Select(i => new Team { Number = i, Name = $"team {i:0000}" })
             .ToArray();
         var allpods = Enumerable.Range(1, podcount)
             .Select(i => $"Pod {i}")
@@ -644,7 +654,7 @@ public partial class Index
 
 public class RegistrationEntry
 {
-    public string Team { get; set; }
+    public int Team { get; set; }
     public string Name { get; set; }
     public string Roster { get; set; }
     public string Coach1 { get; set; }
@@ -653,7 +663,7 @@ public class RegistrationEntry
 
 public class TeamScheduleEntry
 {
-    public string Team { get; set; }
+    public int Team { get; set; }
     public string Name { get; set; }
     public TimeOnly Judging { get; set; }
     public string Pod { get; set; }
@@ -670,7 +680,7 @@ public class TeamScheduleEntry
 public class JudgingQueuingEntry
 {
     public TimeOnly QueueTime { get; set; }
-    public string Team { get; set; }
+    public int Team { get; set; }
     public string Name { get; set; }
     public TimeOnly Judging { get; set; }
     public string Pod { get; set; }
@@ -679,14 +689,14 @@ public class JudgingQueuingEntry
 public class PodJudgingEntry
 {
     public TimeOnly Time { get; set; }
-    public string Team { get; set; }
+    public int Team { get; set; }
     public string Name { get; set; }
 }
 
 public class RobotGameQueuingEntry
 {
     public TimeOnly QueueTime { get; set; }
-    public string Team { get; set; }
+    public int Team { get; set; }
     public string Name { get; set; }
     public TimeOnly MatchTime { get; set; }
     public string Match { get; set; }
@@ -696,7 +706,7 @@ public class RobotGameQueuingEntry
 public class RobotGameTableEntry
 {
     public TimeOnly MatchTime { get; set; }
-    public string Team { get; set; }
+    public int Team { get; set; }
     public string Name { get; set; }
     public string Match { get; set; }
 }
@@ -721,7 +731,7 @@ public class FlexEntry
     public static List<ExpandoObject> Pivot(Array data) => data.Cast<FlexEntry>().Select(e => e.ToFlex()).ToList();
 }
 
-public static class ClosedXMLHelpers
+public static partial class ClosedXMLHelpers
 {
     public static void FixFlexTable(IXLTable table)
     {
@@ -756,6 +766,16 @@ public static class ClosedXMLHelpers
 
     public static void FixStyles(IXLTable table)
     {
+        var headerrow = table.Row(1);
+        
+        foreach (var cell in headerrow.CellsUsed())
+        {
+            // convert the cell value to text split by pascal casing
+            var value = cell.GetValue<string>();
+            var fixedup = PascalCaseRegex().Replace(value, " $1");
+            cell.SetValue(fixedup);
+        }
+
         // walk all cells and convert the cell to numeric or DateTime
         var cells = table.CellsUsed();
         foreach (var cell in cells)
@@ -771,7 +791,7 @@ public static class ClosedXMLHelpers
             {
                 cell.SetValue(timeValue);
                 cell.Style.NumberFormat.Format = "h:mm AM/PM";
-                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             }
             else if (value.Length == 1)
             {
@@ -779,4 +799,7 @@ public static class ClosedXMLHelpers
             }
         }
     }
+
+    [GeneratedRegex(@"(?<!^)(?<!-)((?<=\p{Ll})[\p{Lu}\d]|\p{Lu}(?=\p{Ll}))")]
+    private static partial Regex PascalCaseRegex();
 }

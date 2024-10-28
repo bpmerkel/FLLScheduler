@@ -7,17 +7,9 @@
 <MudLayout>
     <MudMainContent Class="pt-0">
         <MudAppBar Color="Color.Primary" Fixed="true" Dense="true">
-            @if (!IsSmallScreen)
-            {
-                <MudText Typo="Typo.h4">FLL Tournament Scheduler</MudText>
-                <MudSpacer />
-            }
-
-            @if (!IsSmallScreen)
-            {
-                <MudSpacer />
-                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Help" Color="Color.Warning" @onclick="OpenWelcomeDialog">Welcome</MudButton>
-            }
+            <MudText Typo="Typo.h4">FLL Tournament Scheduler</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Help" Color="Color.Warning" @onclick="OpenWelcomeDialog">Welcome</MudButton>
         </MudAppBar>
 
         <div class="TopSpacer"></div>
@@ -84,7 +76,18 @@
                     </MudButton>
                 </MudStack>
                 <div class="vertical-scroll">
-                    @GridsToShow
+                    @if (Errors.Any())
+                    {
+                        <MudText Typo="Typo.h6">Configuration Errors</MudText>
+                        @foreach (var error in Errors)
+                        {
+                            <MudText Typo="Typo.body1" Color="Color.Error">@error</MudText>
+                        }
+                    }
+                    else
+                    {
+                        @GridsToShow
+                    }
                 </div>
             </MudItem>
         </MudGrid>

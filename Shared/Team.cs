@@ -2,6 +2,6 @@
 
 public class Team
 {
-    public string Number { get; init; }
+    public int Number { get; init; }
     public string Name { get; init; }
 }
