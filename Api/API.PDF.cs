@@ -55,34 +55,34 @@ public partial class API
         QuestPDF.Settings.License = LicenseType.Community;
         var pdfDoc = Document.Create(container =>
         {
-            foreach (var (name, pivotType, data) in pivots)
+            foreach (var pivotEntry in pivots)
             {
                 // GeneratePdfSection(data, name, "Manatee Robot Mayhem Practice Tournament", container);
-                switch (pivotType)
+                switch (pivotEntry.pivotType)
                 {
                     case PivotType.Registration:
-                        GeneratePdfSection<RegistrationEntry>(data, name, eventName, logo1, logo2, container);
+                        GeneratePdfSection<RegistrationEntry>(pivotEntry.data, pivotEntry.pivot, eventName, logo1, logo2, container);
                         break;
                     case PivotType.TeamSchedule:
-                        GeneratePdfSection<TeamScheduleEntry>(data, name, eventName, logo1, logo2, container);
+                        GeneratePdfSection<TeamScheduleEntry>(pivotEntry.data, pivotEntry.pivot, eventName, logo1, logo2, container);
                         break;
                     case PivotType.JudgingQueuingSchedule:
-                        GeneratePdfSection<JudgingQueuingEntry>(data, name, eventName, logo1, logo2, container);
+                        GeneratePdfSection<JudgingQueuingEntry>(pivotEntry.data, pivotEntry.pivot, eventName, logo1, logo2, container);
                         break;
                     case PivotType.JudgingSchedule:
-                        //GeneratePdfSection<RegistrationEntry>(data, name, eventName, logo1, logo2, container);
+                        //GeneratePdfSection<RegistrationEntry>(pivotEntry.data, pivotEntry.pivot, eventName, logo1, logo2, container);
                         break;
                     case PivotType.PodJudgingSchedule:
-                        GeneratePdfSection<PodJudgingEntry>(data, name, eventName, logo1, logo2, container);
+                        GeneratePdfSection<PodJudgingEntry>(pivotEntry.data, pivotEntry.pivot, eventName, logo1, logo2, container);
                         break;
                     case PivotType.RobotGameQueuingSchedule:
-                        GeneratePdfSection<RobotGameQueuingEntry>(data, name, eventName, logo1, logo2, container);
+                        GeneratePdfSection<RobotGameQueuingEntry>(pivotEntry.data, pivotEntry.pivot, eventName, logo1, logo2, container);
                         break;
                     case PivotType.RobotGameSchedule:
-                        //GeneratePdfSection<RegistrationEntry>(FlexEntry.Pivot(data), name, eventName, logo1, logo2, container);
+                        //GeneratePdfSection<RegistrationEntry>(FlexEntry.Pivot(pivotEntry.data), pivotEntry.pivot, eventName, logo1, logo2, container);
                         break;
                     case PivotType.RobotGameTableSchedule:
-                        GeneratePdfSection<RobotGameTableEntry>(data, name, eventName, logo1, logo2, container);
+                        GeneratePdfSection<RobotGameTableEntry>(pivotEntry.data, pivotEntry.pivot, eventName, logo1, logo2, container);
                         break;
                     default:
                         throw new ApplicationException();
