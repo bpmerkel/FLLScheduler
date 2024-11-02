@@ -16,7 +16,7 @@ namespace ApiIsolated;
 /// <remarks>
 /// Initializes a new instance of the <see cref="HttpTrigger"/> class.
 /// </remarks>
-public class CalculateScheduleApi
+public partial class API
 {
     /// <summary>
     /// Runs the HTTP trigger.
@@ -166,7 +166,7 @@ public class CalculateScheduleApi
         return new ResponseModel
         {
             Request = config,
-            Schedule = teams
+            Pivots = new Pivots(config, teams
                 .Select(team => new TeamSchedule
                 {
                     Number = team.Number,
@@ -183,6 +183,7 @@ public class CalculateScheduleApi
                     Match3Table = team.Match[3].Table
                 })
                 .ToArray()
+            )
         };
     }
 }

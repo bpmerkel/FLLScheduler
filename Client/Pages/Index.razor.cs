@@ -1,17 +1,14 @@
-using FLLScheduler.Shared;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MudBlazor.Services;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text;
+using System.Text.RegularExpressions;
 using Markdig;
-using System.Dynamic;
 using ClosedXML.Excel;
 using BlazorDownloadFile;
-using DocumentFormat.OpenXml.Spreadsheet;
-using System.Text.RegularExpressions;
-using static MudBlazor.Components.Chart.Models.TimeSeriesChartSeries;
+using FLLScheduler.Shared;
 
 namespace FLLScheduler.Pages;
 
@@ -54,6 +51,7 @@ public partial class Index
     private readonly MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
     private ResponseModel Response;
     private bool exporting = false;
+    private bool exportingPdf = false;   
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -161,185 +159,9 @@ public partial class Index
         return Errors.Count == 0;
     }
 
-    private enum PivotType
-    {
-        Registration,
-        TeamSchedule,
-        JudgingQueuingSchedule,
-        JudgingSchedule,
-        PodJudgingSchedule,
-        RobotGameQueuingSchedule,
-        RobotGameSchedule,
-        RobotGameTableSchedule
-    }
-
-    private List<(string pivot, PivotType pivotType, Array data)> GeneratePivots()
-    {
-        var d = new List<(string pivot, PivotType pivotType, Array data)>();
-        var master = Response.Schedule;
-        d.Add(("Registration", PivotType.Registration, master
-            .OrderBy(s => s.Number)
-            .Select(s => new RegistrationEntry
-            {
-                Team = s.Number,
-                Name = s.Name,
-                Roster = string.Empty
-            })
-            .ToArray()));
-
-        d.Add(("Team Schedule", PivotType.TeamSchedule, master
-            .OrderBy(s => s.Number)
-            .Select(s => new TeamScheduleEntry
-            {
-                Team = s.Number,
-                Name = s.Name,
-                Judging = s.JudgingStart,
-                Pod = s.JudgingPod,
-                Practice = s.PracticeStart,
-                PracticeTable = s.PracticeTable,
-                Match1 = s.Match1Start,
-                Match1Table = s.Match1Table,
-                Match2 = s.Match2Start,
-                Match2Table = s.Match2Table,
-                Match3 = s.Match3Start,
-                Match3Table = s.Match3Table
-            })
-            .ToArray()));
-
-        d.Add(("Judging Queuing Schedule", PivotType.JudgingQueuingSchedule, master
-            .Select(s => new JudgingQueuingEntry
-            {
-                QueueTime = s.JudgingStart.AddMinutes(-5),
-                Team = s.Number,
-                Name = s.Name,
-                Judging = s.JudgingStart,
-                Pod = s.JudgingPod
-            })
-            .OrderBy(s => s.QueueTime)
-            .ThenBy(s => s.Pod)
-            .ToArray()));
-
-        d.Add(("Judging Schedule", PivotType.JudgingSchedule, master
-            .GroupBy(t => t.JudgingStart)
-            .Select(g => new { Time = g.Key, Sessions = g.ToArray() })
-            .Select(e =>
-            {
-                var schedule = new FlexEntry { Time = e.Time, Columns = Response.Request.Judging.Pods, Row = [] };
-                foreach (var pod in schedule.Columns)
-                {
-                    var assignment = e.Sessions.FirstOrDefault(s => s.JudgingPod == pod);
-                    schedule.Row.Add(assignment == null
-                        ? "-"
-                        : $"{assignment.Number} - {assignment.Name}");
-                }
-                return schedule;
-            })
-            .ToArray()));
-
-        foreach (var pod in Response.Request.Judging.Pods)
-        {
-            d.Add(($"{pod} Judging Schedule", PivotType.PodJudgingSchedule, master
-                .Where(s => s.JudgingPod == pod)
-                .OrderBy(s => s.JudgingStart)
-                .Select(s => new PodJudgingEntry
-                {
-                    Time = s.JudgingStart,
-                    Team = s.Number,
-                    Name = s.Name
-                })
-                .ToArray()));
-        }
-
-        var games = master
-            .Select(s => new
-            {
-                Time = s.PracticeStart,
-                Table = s.PracticeTable,
-                s.Number,
-                s.Name,
-                Match = "P"
-            })
-            .Union(master
-                .Select(s => new
-                {
-                    Time = s.Match1Start,
-                    Table = s.Match1Table,
-                    s.Number,
-                    s.Name,
-                    Match = "1"
-                }))
-            .Union(master
-                .Select(s => new
-                {
-                    Time = s.Match2Start,
-                    Table = s.Match2Table,
-                    s.Number,
-                    s.Name,
-                    Match = "2"
-                }))
-            .Union(master
-                .Select(s => new
-                {
-                    Time = s.Match3Start,
-                    Table = s.Match3Table,
-                    s.Number,
-                    s.Name,
-                    Match = "3"
-                }))
-            .Select(e => new RobotGameQueuingEntry
-            {
-                QueueTime = e.Time.AddMinutes(-5),
-                Team = e.Number,
-                Name = e.Name,
-                MatchTime = e.Time,
-                Match = e.Match,
-                Table = e.Table
-            })
-            .OrderBy(e => e.QueueTime)
-            // order tables in the order given in the request
-            .ThenBy(e => Response.Request.RobotGame.Tables.Select((t, i) => (t, i)).First(ee => ee.t == e.Table).i)
-            .ToArray();
-        d.Add(("Robot Game Queuing Schedule", PivotType.RobotGameQueuingSchedule, games));
-
-        var combined = games
-            .GroupBy(game => game.MatchTime)
-            .Select(g => new { Time = g.Key, Games = g.ToArray() })
-            .Select(e =>
-            {
-                var schedule = new FlexEntry { Time = e.Time, Columns = Response.Request.RobotGame.Tables, Row = [] };
-                foreach (var table in schedule.Columns)
-                {
-                    var assignment = e.Games.FirstOrDefault(g => g.Table == table);
-                    schedule.Row.Add(assignment == null
-                        ? "-"
-                        : $"{assignment.Team} - {assignment.Name} ({assignment.Match})");
-                }
-                return schedule;
-            })
-            .ToArray();
-        d.Add(("Robot Game Schedule", PivotType.RobotGameSchedule, combined));
-
-        foreach (var table in Response.Request.RobotGame.Tables)
-        {
-            var gamesattable = games
-                .Where(g => g.Table == table)
-                .Select(g => new RobotGameTableEntry
-                {
-                    MatchTime = g.MatchTime,
-                    Team = g.Team,
-                    Name = g.Name,
-                    Match = g.Match
-                })
-                .OrderBy(g => g.MatchTime)
-                .ToArray();
-            d.Add(($"{table} Robot Game Table Schedule", PivotType.RobotGameTableSchedule, gamesattable));
-        }
-        return d;
-    }
-
     private void ShowResults()
     {
-        var pivots = GeneratePivots();
+        var pivots = Response.Pivots;
         var md = new StringBuilder();
         md.AppendLine($"# {Response.Request.Name}{{#name .profile-name .mud-typography .mud-typography-h4}}");
         md.AppendLine($"## Generated {Response.GeneratedUtc.ToLocalTime():dddd MMM-dd h\\:mm tt}{{#time .profile-time .mud-typography .mud-typography-h5}}");
@@ -453,13 +275,34 @@ public partial class Index
     [Inject] IBlazorDownloadFileService BlazorDownloadFileService { get; set; }
 
     // export to Excel using ClosedXml
+    private async Task DoExportPdf()
+    {
+        if (Response == null) return;
+        exportingPdf = true;
+
+        await Task.Run(async () =>
+        {
+            // send request to server to generate PDF and download
+            var httpClient = ClientFactory.CreateClient("API");
+            var json = new StringContent(JsonSerializer.Serialize(Response.Pivots), Encoding.UTF8, "application/json");
+            using var response = await httpClient.PostAsync("api/GeneratePDF", json);
+            if (response.IsSuccessStatusCode)
+            {
+                var responsePDF = await response.Content.ReadAsStreamAsync();
+                await BlazorDownloadFileService.DownloadFile("Schedules.pdf", responsePDF, "application/pdf");
+            }
+            exporting = false;
+        });
+    }
+
+    // export to Excel using ClosedXml
     private async Task DoExport()
     {
         if (Response == null) return;
         exporting = true;
         await Task.Run(async () =>
         {
-            var pivots = GeneratePivots();
+            var pivots = Response.Pivots;
             var wb = new XLWorkbook();
             foreach (var (name, pivotType, data) in pivots)
             {
@@ -650,85 +493,6 @@ public partial class Index
             Teams = allteams
         };
     }
-}
-
-public class RegistrationEntry
-{
-    public int Team { get; set; }
-    public string Name { get; set; }
-    public string Roster { get; set; }
-    public string Coach1 { get; set; }
-    public string Coach2 { get; set; }
-}
-
-public class TeamScheduleEntry
-{
-    public int Team { get; set; }
-    public string Name { get; set; }
-    public TimeOnly Judging { get; set; }
-    public string Pod { get; set; }
-    public TimeOnly Practice { get; set; }
-    public string PracticeTable { get; set; }
-    public TimeOnly Match1 { get; set; }
-    public string Match1Table { get; set; }
-    public TimeOnly Match2 { get; set; }
-    public string Match2Table { get; set; }
-    public TimeOnly Match3 { get; set; }
-    public string Match3Table { get; set; }
-}
-
-public class JudgingQueuingEntry
-{
-    public TimeOnly QueueTime { get; set; }
-    public int Team { get; set; }
-    public string Name { get; set; }
-    public TimeOnly Judging { get; set; }
-    public string Pod { get; set; }
-}
-
-public class PodJudgingEntry
-{
-    public TimeOnly Time { get; set; }
-    public int Team { get; set; }
-    public string Name { get; set; }
-}
-
-public class RobotGameQueuingEntry
-{
-    public TimeOnly QueueTime { get; set; }
-    public int Team { get; set; }
-    public string Name { get; set; }
-    public TimeOnly MatchTime { get; set; }
-    public string Match { get; set; }
-    public string Table { get; set; }
-}
-
-public class RobotGameTableEntry
-{
-    public TimeOnly MatchTime { get; set; }
-    public int Team { get; set; }
-    public string Name { get; set; }
-    public string Match { get; set; }
-}
-
-public class FlexEntry
-{
-    public TimeOnly Time { get; set; }
-    public string[] Columns { get; set; }
-    public List<string> Row { get; set; }
-
-    private ExpandoObject ToFlex()
-    {
-        var ex = new ExpandoObject();
-        ex.TryAdd(nameof(Time), Time);
-        for (var i = 0; i < Columns.Length; i++)
-        {
-            ex.TryAdd(Columns[i], Row[i]);
-        }
-        return ex;
-    }
-
-    public static List<ExpandoObject> Pivot(Array data) => data.Cast<FlexEntry>().Select(e => e.ToFlex()).ToList();
 }
 
 public static partial class ClosedXMLHelpers
