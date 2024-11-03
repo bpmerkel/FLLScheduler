@@ -31,28 +31,28 @@ public partial class API
         var logger = executionContext.GetLogger("HttpTrigger1");
         logger.LogInformation("CalculateSchedule function processed a request.");
 
-        var config = await req.ReadFromJsonAsync<RequestModel>();
+        var request = await req.ReadFromJsonAsync<RequestModel>();
 
         // validate the incoming request
-        ArgumentNullException.ThrowIfNull(config, nameof(config));
-        ArgumentNullException.ThrowIfNull(config.Teams, nameof(config.Teams));
-        ArgumentNullException.ThrowIfNull(config.Judging, nameof(config.Judging));
-        ArgumentNullException.ThrowIfNull(config.Judging.Pods, nameof(config.Judging.Pods));
-        ArgumentNullException.ThrowIfNull(config.RobotGame, nameof(config.RobotGame));
-        ArgumentNullException.ThrowIfNull(config.RobotGame.Tables, nameof(config.RobotGame.Tables));
-        ArgumentNullException.ThrowIfNull(config.Event, nameof(config.Event));
-        ArgumentOutOfRangeException.ThrowIfZero(config.Judging.Pods.Length, nameof(config.Judging.Pods));
-        ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.Tables.Length, nameof(config.RobotGame.Tables));
+        ArgumentNullException.ThrowIfNull(request, nameof(request));
+        ArgumentNullException.ThrowIfNull(request.Teams, nameof(request.Teams));
+        ArgumentNullException.ThrowIfNull(request.Judging, nameof(request.Judging));
+        ArgumentNullException.ThrowIfNull(request.Judging.Pods, nameof(request.Judging.Pods));
+        ArgumentNullException.ThrowIfNull(request.RobotGame, nameof(request.RobotGame));
+        ArgumentNullException.ThrowIfNull(request.RobotGame.Tables, nameof(request.RobotGame.Tables));
+        ArgumentNullException.ThrowIfNull(request.Event, nameof(request.Event));
+        ArgumentOutOfRangeException.ThrowIfZero(request.Judging.Pods.Length, nameof(request.Judging.Pods));
+        ArgumentOutOfRangeException.ThrowIfZero(request.RobotGame.Tables.Length, nameof(request.RobotGame.Tables));
         // Ensure even number of tables specfified
-        ArgumentOutOfRangeException.ThrowIfNotEqual(0, config.RobotGame.Tables.Length % 2, nameof(config.RobotGame.Tables));
+        ArgumentOutOfRangeException.ThrowIfNotEqual(0, request.RobotGame.Tables.Length % 2, nameof(request.RobotGame.Tables));
         // Ensure number of pods can judge the team count
-        ArgumentOutOfRangeException.ThrowIfNotEqual(true, config.Judging.Pods.Length >= config.Teams.Length / 6d, nameof(config.Teams));
+        ArgumentOutOfRangeException.ThrowIfNotEqual(true, request.Judging.Pods.Length >= request.Teams.Length / 6d, nameof(request.Teams));
 
         //ArgumentOutOfRangeException.ThrowIfZero(config.Judging.CycleTimeMinutes, nameof(config.Judging.CycleTimeMinutes));
         //ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.CycleTimeMinutes, nameof(config.RobotGame.CycleTimeMinutes));
         //ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.BreakTimes.Length, nameof(config.RobotGame.BreakTimes));
 
-        var responseModel = ProcessRequest(config);
+        var responseModel = ProcessRequest(request);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         await response.WriteAsJsonAsync(responseModel);
@@ -60,42 +60,42 @@ public partial class API
         return response;
     }
 
-    private static ResponseModel ProcessRequest(RequestModel config)
+    private static ResponseModel ProcessRequest(RequestModel request)
     {
         // always seed with same value for deterministic results
         var rnd = new Random(0);
 
         // map the incoming teams to the local working class, and randomize
-        var teams = config.Teams
+        var teams = request.Teams
             .Select(t => new WorkingTeam { Number = t.Number, Name = t.Name })
             .OrderBy(t => rnd.Next())
             .ToArray();
 
         // first, assign judging times 
-        var slot = config.Judging.StartTime;
+        var slot = request.Judging.StartTime;
         var podcounter = 0;
         foreach (var team in teams)
         {
             team.JudgingStart = slot;
-            team.JudgingPod = config.Judging.Pods[podcounter];
+            team.JudgingPod = request.Judging.Pods[podcounter];
 
             // when podcounter = 0 it's time for a new time slot 
-            podcounter = (podcounter + 1) % config.Judging.Pods.Length;
+            podcounter = (podcounter + 1) % request.Judging.Pods.Length;
             if (podcounter == 0)
             {
-                slot = slot.AddMinutes(config.Judging.CycleTimeMinutes);
+                slot = slot.AddMinutes(request.Judging.CycleTimeMinutes);
                 // skip to afternoon if next slot overlaps lunch 
-                var end = slot.AddMinutes(config.Judging.CycleTimeMinutes);
-                if (end.IsBetween(config.Event.LunchStartTime.Add(TimeSpan.FromSeconds(1)), config.Event.LunchEndTime))
+                var end = slot.AddMinutes(request.Judging.CycleTimeMinutes);
+                if (end.IsBetween(request.Event.LunchStartTime.Add(TimeSpan.FromSeconds(1)), request.Event.LunchEndTime))
                 {
-                    slot = config.Event.LunchEndTime;
+                    slot = request.Event.LunchEndTime;
                 }
             }
         }
 
         // next, assign robot game run times timeslot by timeslot 
         var tablecounter = 0;
-        slot = config.RobotGame.StartTime;
+        slot = request.RobotGame.StartTime;
 
         // assign times until all teams are all scheduled
         while (!teams.All(team => team.Match.All(match => match.Assigned)))
@@ -107,16 +107,16 @@ public partial class API
                 .Where(team =>
                 {
                     // skip judging + buffer
-                    var maxbuffer = Math.Max(config.Judging.BufferMinutes, config.RobotGame.BufferMinutes);
+                    var maxbuffer = Math.Max(request.Judging.BufferMinutes, request.RobotGame.BufferMinutes);
                     var start = team.JudgingStart.AddMinutes(-maxbuffer);
-                    var end = team.JudgingStart.AddMinutes(config.Judging.CycleTimeMinutes).AddMinutes(config.Judging.BufferMinutes);
+                    var end = team.JudgingStart.AddMinutes(request.Judging.CycleTimeMinutes).AddMinutes(request.Judging.BufferMinutes);
                     return !slot.IsBetween(start, end);
                 })
                 .Where(team =>
                 {
                     // skip teams with time slots already booked + buffer
                     var start = team.Match.Min(m => m.Start);
-                    var end = team.Match.Max(m => m.Start.AddMinutes(config.RobotGame.CycleTimeMinutes)).AddMinutes(config.RobotGame.BufferMinutes);
+                    var end = team.Match.Max(m => m.Start.AddMinutes(request.RobotGame.CycleTimeMinutes)).AddMinutes(request.RobotGame.BufferMinutes);
                     return !slot.IsBetween(start, end);
                 })
                 .OrderBy(team => team.Match.Select((m, i) => new { m, i }).First(e => !e.m.Assigned).i)
@@ -128,11 +128,11 @@ public partial class API
                 // for this team, get the match index of the first available match 
                 var match = team.Match.First(m => !m.Assigned);
                 match.Start = slot;
-                match.Table = config.RobotGame.Tables[tablecounter];
+                match.Table = request.RobotGame.Tables[tablecounter];
                 match.Assigned = true;
 
                 // rotate the table counter to the next table
-                tablecounter = (tablecounter + 1) % config.RobotGame.Tables.Length;
+                tablecounter = (tablecounter + 1) % request.RobotGame.Tables.Length;
                 // when tablecounter = 0 it's time for a new time slot 
                 if (tablecounter == 0)
                 {
@@ -141,23 +141,23 @@ public partial class API
             }
 
             // increment to the next timeslot
-            slot = slot.AddMinutes(config.RobotGame.CycleTimeMinutes);
+            slot = slot.AddMinutes(request.RobotGame.CycleTimeMinutes);
 
             // skip to afternoon if next slot overlaps into lunch 
-            var end = slot.AddMinutes(config.RobotGame.CycleTimeMinutes);
-            if (end.IsBetween(config.Event.LunchStartTime.AddMinutes(1), config.Event.LunchEndTime))
+            var end = slot.AddMinutes(request.RobotGame.CycleTimeMinutes);
+            if (end.IsBetween(request.Event.LunchStartTime.AddMinutes(1), request.Event.LunchEndTime))
             {
-                slot = config.Event.LunchEndTime;
+                slot = request.Event.LunchEndTime;
             }
 
             // skip break times for break durations 
-            foreach (var breaktime in config.RobotGame.BreakTimes)
+            foreach (var breaktime in request.RobotGame.BreakTimes)
             {
-                end = slot.AddMinutes(config.RobotGame.CycleTimeMinutes);
-                if (slot.IsBetween(breaktime, breaktime.AddMinutes(config.RobotGame.BreakDurationMinutes))
-                    || end.IsBetween(breaktime.AddMinutes(1), breaktime.AddMinutes(config.RobotGame.BreakDurationMinutes)))
+                end = slot.AddMinutes(request.RobotGame.CycleTimeMinutes);
+                if (slot.IsBetween(breaktime, breaktime.AddMinutes(request.RobotGame.BreakDurationMinutes))
+                    || end.IsBetween(breaktime.AddMinutes(1), breaktime.AddMinutes(request.RobotGame.BreakDurationMinutes)))
                 {
-                    slot = breaktime.AddMinutes(config.RobotGame.BreakDurationMinutes);
+                    slot = breaktime.AddMinutes(request.RobotGame.BreakDurationMinutes);
                     break;
                 }
             }
@@ -165,8 +165,8 @@ public partial class API
 
         return new ResponseModel
         {
-            Request = config,
-            Pivots = new Pivots(config, teams
+            Request = request,
+            Pivots = new Pivots(request, teams
                 .Select(team => new TeamSchedule
                 {
                     Number = team.Number,

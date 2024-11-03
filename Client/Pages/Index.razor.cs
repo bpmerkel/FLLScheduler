@@ -170,14 +170,14 @@ public partial class Index
 
         foreach (var entry in pivots)
         {
-            switch (entry.pivotType)
+            switch (entry.Pivot)
             {
                 case PivotType.Registration:
                     md.AppendLine("### Registration{.mud-typography .mud-typography-h6}");
                     md.AppendLine("{#registration-table .markdown-table}");
                     md.AppendLine("|Team|Name|Roster|Coach 1|Coach 2|");
                     md.AppendLine("|:--:|:---|-----:|:------|:------|");
-                    foreach (var s in entry.data.Cast<RegistrationEntry>())
+                    foreach (var s in entry.Data.Cast<RegistrationEntry>())
                     {
                         md.AppendLine($"|{s.Team}|{s.Name}| | | |");
                     }
@@ -187,7 +187,7 @@ public partial class Index
                     md.AppendLine("{#team-table .markdown-table}");
                     md.AppendLine("|Team|Name|Judging|Pod|Practice|Practice Table|Match 1|Match 1 Table|Match 2|Match 2 Table|Match 3|Match 3 Table|");
                     md.AppendLine("|:--:|:---|------:|:--|-------:|:------------:|------:|:-----------:|------:|:-----------:|------:|:-----------:|");
-                    foreach (var s in entry.data.Cast<TeamScheduleEntry>())
+                    foreach (var s in entry.Data.Cast<TeamScheduleEntry>())
                     {
                         md.Append($"|{s.Team}|{s.Name}|{s.Judging:h\\:mm tt}|{s.Pod}");
                         md.Append($"|{s.Practice:h\\:mm tt}|{s.PracticeTable}");
@@ -201,7 +201,7 @@ public partial class Index
                     md.AppendLine("{#judging-queuer-table .markdown-table}");
                     md.AppendLine("|Queue Time|Team|Name|Judging|Pod|");
                     md.AppendLine("|---------:|:--:|:---|------:|:--|");
-                    foreach (var s in entry.data.Cast<JudgingQueuingEntry>())
+                    foreach (var s in entry.Data.Cast<JudgingQueuingEntry>())
                     {
                         md.AppendLine($"|{s.QueueTime:h\\:mm tt}|{s.Team}|{s.Name}|{s.Judging:h\\:mm tt}|{s.Pod}|");
                     }
@@ -211,7 +211,7 @@ public partial class Index
                     md.AppendLine("{#pod-table .markdown-table}");
                     md.AppendLine("|Time|" + string.Join("|", Response.Request.Judging.Pods) + "|");
                     md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", Response.Request.Judging.Pods.Length)));
-                    foreach (var s in entry.data.Cast<FlexEntry>())
+                    foreach (var s in entry.Data.Cast<FlexEntry>())
                     {
                         md.Append($"|{s.Time:h\\:mm tt}");
                         foreach (var team in s.Row)
@@ -222,11 +222,11 @@ public partial class Index
                     }
                     break;
                 case PivotType.PodJudgingSchedule:
-                    md.AppendLine($"### {entry.pivot}{{.mud-typography .mud-typography-h6}}");
+                    md.AppendLine($"### {entry.Name}{{.mud-typography .mud-typography-h6}}");
                     md.AppendLine("{#judging-table .markdown-table}");
                     md.AppendLine("|Time|Team|Name|");
                     md.AppendLine("|---:|:----:|:---|");
-                    foreach (var s in entry.data.Cast<PodJudgingEntry>())
+                    foreach (var s in entry.Data.Cast<PodJudgingEntry>())
                     {
                         md.AppendLine($"|{s.Time:h\\:mm tt}|{s.Team}|{s.Name}|");
                     }
@@ -236,7 +236,7 @@ public partial class Index
                     md.AppendLine("{#queuer-table .markdown-table}");
                     md.AppendLine("|Queue Time|Team|Name|Match Time|Match|Table|");
                     md.AppendLine("|---------:|:--:|:---|---------:|:---:|:----|");
-                    foreach (var qe in entry.data.Cast<RobotGameQueuingEntry>())
+                    foreach (var qe in entry.Data.Cast<RobotGameQueuingEntry>())
                     {
                         md.AppendLine($"|{qe.QueueTime:h\\:mm tt}|{qe.Team}|{qe.Name}|{qe.MatchTime:h\\:mm tt}|{qe.Match}|{qe.Table}|");
                     }
@@ -246,7 +246,7 @@ public partial class Index
                     md.AppendLine("{#game-table .markdown-table}");
                     md.AppendLine("|Time|" + string.Join("|", Response.Request.RobotGame.Tables) + "|");
                     md.AppendLine("|---:|" + string.Concat(Enumerable.Repeat(":---:|", Response.Request.RobotGame.Tables.Length)));
-                    foreach (var s in entry.data.Cast<FlexEntry>())
+                    foreach (var s in entry.Data.Cast<FlexEntry>())
                     {
                         md.Append($"|{s.Time:h\\:mm tt}");
                         foreach (var team in s.Row)
@@ -257,11 +257,11 @@ public partial class Index
                     }
                     break;
                 case PivotType.RobotGameTableSchedule:
-                    md.AppendLine($"### {entry.pivot}{{.mud-typography .mud-typography-h6}}");
+                    md.AppendLine($"### {entry.Name}{{.mud-typography .mud-typography-h6}}");
                     md.AppendLine("{#game-table-table .markdown-table}");
                     md.AppendLine("|Match Time|Team|Name|Match|");
                     md.AppendLine("|---------:|:----:|:---|:---:|");
-                    foreach (var s in entry.data.Cast<RobotGameTableEntry>())
+                    foreach (var s in entry.Data.Cast<RobotGameTableEntry>())
                     {
                         md.AppendLine($"|{s.MatchTime:h\\:mm tt}|{s.Team}|{s.Name}|{s.Match}");
                     }
@@ -307,38 +307,38 @@ public partial class Index
             var wb = new XLWorkbook();
             foreach (var pivotEntry in pivots)
             {
-                var wsname = pivotEntry.pivot.Replace(" Schedule", string.Empty);
+                var wsname = pivotEntry.Name.Replace(" Schedule", string.Empty);
                 var ws = wb.AddWorksheet(wsname);
                 var cell = ws.Cell(1, 1);
 
                 IXLTable table;
-                switch (pivotEntry.pivotType)
+                switch (pivotEntry.Pivot)
                 {
                     case PivotType.Registration:
-                        table = cell.InsertTable(pivotEntry.data.Cast<RegistrationEntry>(), true);
+                        table = cell.InsertTable(pivotEntry.Data.Cast<RegistrationEntry>(), true);
                         break;
                     case PivotType.TeamSchedule:
-                        table = cell.InsertTable(pivotEntry.data.Cast<TeamScheduleEntry>(), true);
+                        table = cell.InsertTable(pivotEntry.Data.Cast<TeamScheduleEntry>(), true);
                         break;
                     case PivotType.JudgingQueuingSchedule:
-                        table = cell.InsertTable(pivotEntry.data.Cast<JudgingQueuingEntry>(), true);
+                        table = cell.InsertTable(pivotEntry.Data.Cast<JudgingQueuingEntry>(), true);
                         break;
                     case PivotType.JudgingSchedule:
-                        table = cell.InsertTable(FlexEntry.Pivot(pivotEntry.data), true);
+                        table = cell.InsertTable(FlexEntry.Pivot(pivotEntry.Data), true);
                         ClosedXMLHelpers.FixFlexTable(table);
                         break;
                     case PivotType.PodJudgingSchedule:
-                        table = cell.InsertTable(pivotEntry.data.Cast<PodJudgingEntry>(), true);
+                        table = cell.InsertTable(pivotEntry.Data.Cast<PodJudgingEntry>(), true);
                         break;
                     case PivotType.RobotGameQueuingSchedule:
-                        table = cell.InsertTable(pivotEntry.data.Cast<RobotGameQueuingEntry>(), true);
+                        table = cell.InsertTable(pivotEntry.Data.Cast<RobotGameQueuingEntry>(), true);
                         break;
                     case PivotType.RobotGameSchedule:
-                        table = cell.InsertTable(FlexEntry.Pivot(pivotEntry.data), true);
+                        table = cell.InsertTable(FlexEntry.Pivot(pivotEntry.Data), true);
                         ClosedXMLHelpers.FixFlexTable(table);
                         break;
                     case PivotType.RobotGameTableSchedule:
-                        table = cell.InsertTable(pivotEntry.data.Cast<RobotGameTableEntry>(), true);
+                        table = cell.InsertTable(pivotEntry.Data.Cast<RobotGameTableEntry>(), true);
                         break;
                     default:
                         throw new ApplicationException();

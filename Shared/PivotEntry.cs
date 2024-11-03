@@ -2,7 +2,7 @@
 
 public class PivotEntry
 {
-    public string pivot { get; set; }
-    public PivotType pivotType { get; set; }
-    public Array data { get; set; }
+    public string Name { get; set; }
+    public PivotType Pivot { get; set; }
+    public Array Data { get; set; }
 }
