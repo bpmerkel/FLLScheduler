@@ -10,8 +10,6 @@ using ClosedXML.Excel;
 using BlazorDownloadFile;
 using FLLScheduler.Shared;
 using System.Text.Json.Serialization;
-using DocumentFormat.OpenXml.Spreadsheet;
-using System.IO;
 
 namespace FLLScheduler.Pages;
 
@@ -53,8 +51,11 @@ public partial class Index
     private MarkupString GridsToShow { get; set; }
     private readonly MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
     private ResponseModel Response;
-    private bool exporting = false;
+    private bool exportingExcel = false;
     private bool exportingPdf = false;
+    private readonly string[] Pods = { "Pod 1", "Pod 2", "Pod 3", "Pod 4", "Pod 5", "Pod 6", "Pod 7", "Pod 8", "Pod 9", "Pod 10" };
+    private readonly string[] Tables = { "Atlantic\nPacific", "Indian\nArctic", "Southern\nProcellarum", "Boreum\nEuropa", "Enceladus\nGanymede", "Titan\nCallisto" };
+    private int PodsSelected = 0;
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -290,7 +291,6 @@ public partial class Index
             using var response = await httpClient.PostAsJsonAsync("api/GeneratePDF", Response.Context);
             if (response.IsSuccessStatusCode)
             {
-                //var responsePDF = await response.Content.ReadAsStreamAsync();
                 var bytes = await response.Content.ReadAsByteArrayAsync();
                 await BlazorDownloadFileService.DownloadFile("Schedules.pdf", bytes, "application/pdf");
             }
@@ -299,10 +299,11 @@ public partial class Index
     }
 
     // export to Excel using ClosedXml
-    private async Task DoExport()
+    private async Task DoExportExcel()
     {
         if (Response == null) return;
-        exporting = true;
+        exportingExcel = true;
+
         await Task.Run(async () =>
         {
             var pivots = new Pivots(Response.Context);
@@ -355,7 +356,7 @@ public partial class Index
             wb.SaveAs(ms);
             await BlazorDownloadFileService.DownloadFile("Schedules.xlsx", ms, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             ms.Flush();
-            exporting = false;
+            exportingExcel = false;
         });
     }
 

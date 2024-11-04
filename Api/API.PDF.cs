@@ -12,6 +12,7 @@ using System.Reflection;
 using QuestPDF.Fluent;
 using System.Text.RegularExpressions;
 using QuestPDF.Helpers;
+using System.Linq;
 
 namespace ApiIsolated;
 
@@ -102,11 +103,21 @@ public partial class API
     private static void GeneratePdfSection<T>(Array data, string heading, string eventTitle, byte[] logoLeft, byte[] logoRight, IDocumentContainer container)
     {
         var ts = typeof(T);
+        var isFlex = typeof(T) == typeof(FlexEntry);
 
         container.Page(page =>
         {
             var props = ts.GetProperties();
-            page.Size(props.Length > 10 ? PageSizes.Letter.Landscape() : PageSizes.Letter.Portrait());
+            if (isFlex)
+            {
+                var flexData = (FlexEntry[])data;
+                var flexColumns = flexData.First().Columns;
+                page.Size(flexColumns.Length > 10 ? PageSizes.B0.Landscape() : PageSizes.B0.Portrait());
+            }
+            else
+            {
+                page.Size(props.Length > 10 ? PageSizes.B0.Landscape() : PageSizes.B0.Portrait());
+            }
             page.Margin(.5f, Unit.Inch);
             page.PageColor(Colors.White);
             page.DefaultTextStyle(x => x.FontSize(10));
@@ -131,6 +142,7 @@ public partial class API
                         text.Line(eventTitle)
                             .FontSize(14);
                     });
+
                 row.ConstantItem(1f, Unit.Inch)
                     .Padding(2, Unit.Point)
                     .AlignRight()
@@ -140,7 +152,6 @@ public partial class API
 
             page.Content()
                 .Section(heading)
-                //.PaddingVertical(.1f, Unit.Inch)
                 .Border(1, Unit.Point)
                 .BorderColor(Colors.Grey.Lighten3)
                 .Table(table =>
@@ -149,10 +160,23 @@ public partial class API
                     {
                         // add a column for the checkbox, and then each property
                         columns.ConstantColumn(.25f, Unit.Inch);
-                        foreach (var c in props)
+                        if (isFlex)
                         {
-                            if (c.Name == "Name") columns.ConstantColumn(2.72f, Unit.Inch);
-                            else columns.RelativeColumn();
+                            var flexData = (FlexEntry[])data;
+                            var flexColumns = flexData.First().Columns;
+                            columns.RelativeColumn();    // add for the time column
+                            foreach (var c in flexColumns)
+                            {
+                                columns.ConstantColumn(2.72f, Unit.Inch);
+                            }
+                        }
+                        else
+                        {
+                            foreach (var c in props)
+                            {
+                                if (c.Name == "Name") columns.ConstantColumn(2.72f, Unit.Inch);
+                                else columns.RelativeColumn();
+                            }
                         }
                     });
 
@@ -160,23 +184,50 @@ public partial class API
                     {
                         header.Cell().Row(1).Column(1)
                             .Element(c => HeaderBlock(c))
-                            .Text("\u2705")
+                            .Text("\u2705") // checked checkbox
                             .FontSize(8)
                             .SemiBold()
                             .FontColor(Colors.Black)
                             .LineHeight(.85f)
                             .AlignCenter();
-                        for (uint ci = 2; ci <= props.Length + 1; ++ci)
+                        if (isFlex)
                         {
-                            var p = props[ci - 2];
-                            var text = header.Cell().Row(1).Column(ci)
+                            var flexData = (FlexEntry[])data;
+                            var flexColumns = flexData.First().Columns;
+                            header.Cell().Row(1).Column(2)
                                 .Element(c => HeaderBlock(c))
-                                .Text(FixHeading(p.Name))
+                                .Text("Time")
                                 .SemiBold()
                                 .FontColor(Colors.Black)
-                                .LineHeight(.85f);
-                            if (p.Name == "Name") text.AlignLeft();
-                            else text.AlignCenter();
+                                .LineHeight(.85f)
+                                .AlignCenter();
+
+                            for (uint ci = 0; ci < flexColumns.Length; ++ci)
+                            {
+                                var p = flexColumns[ci];
+                                header.Cell().Row(1).Column(ci + 3)
+                                    .Element(c => HeaderBlock(c))
+                                    .Text(FixHeading(p))
+                                    .SemiBold()
+                                    .FontColor(Colors.Black)
+                                    .LineHeight(.85f)
+                                    .AlignCenter();
+                            }
+                        }
+                        else
+                        {
+                            for (uint ci = 0; ci < props.Length; ++ci)
+                            {
+                                var p = props[ci];
+                                var text = header.Cell().Row(1).Column(ci + 2)
+                                    .Element(c => HeaderBlock(c))
+                                    .Text(FixHeading(p.Name))
+                                    .SemiBold()
+                                    .FontColor(Colors.Black)
+                                    .LineHeight(.85f);
+                                if (p.Name == "Name") text.AlignLeft();
+                                else text.AlignCenter();
+                            }
                         }
                     });
 
@@ -185,17 +236,42 @@ public partial class API
                     {
                         table.Cell().Row(si + 2).Column(1)
                             .Element(c => Block(c, si))
-                            .Text("\u2610")
+                            .Text("\u2610") // unchecked checkbox
+                            .Thin()
                             .AlignCenter();
                         var s = data.GetValue(si);
-                        for (uint ci = 2; ci <= props.Length + 1; ++ci)
+                        if (isFlex)
                         {
-                            var p = props[ci - 2];
-                            var text = table.Cell().Row(si + 2).Column(ci)
+                            var row = data.GetValue(si) as FlexEntry;
+                            var flexColumns = row.Columns;
+                            table.Cell().Row(si + 2).Column(2)
                                 .Element(c => Block(c, si))
-                                .Text(p.GetValue(s)?.ToString() ?? string.Empty);
-                            if (p.Name == "Name") text.AlignLeft();
-                            else text.AlignCenter();
+                                .Text($"{row.Time:h:mm tt}")
+                                .Thin()
+                                .AlignCenter();
+
+                            for (var ci = 0; ci < flexColumns.Length; ++ci)
+                            {
+                                var p = flexColumns[ci];
+                                table.Cell().Row(si + 2).Column((uint)ci + 3)
+                                    .Element(c => Block(c, si))
+                                    .Text(row.Row[ci])
+                                    .Thin()
+                                    .AlignCenter();
+                            }
+                        }
+                        else
+                        {
+                            for (uint ci = 0; ci < props.Length; ++ci)
+                            {
+                                var p = props[ci];
+                                var text = table.Cell().Row(si + 2).Column(ci + 2)
+                                    .Element(c => Block(c, si))
+                                    .Text(p.GetValue(s)?.ToString() ?? string.Empty)
+                                    .Thin();
+                                if (p.Name == "Name") text.AlignLeft();
+                                else text.AlignCenter();
+                            }
                         }
                     }
                 });
@@ -215,14 +291,14 @@ public partial class API
         .Border(1, Unit.Point)
         .BorderColor(Colors.Grey.Lighten3)
         .Background(Colors.Grey.Lighten2)
-        .Padding(2, Unit.Point)
+        .Padding(1, Unit.Point)
         .AlignMiddle();
 
     private static IContainer Block(IContainer container, uint row) => container
         .Border(1, Unit.Point)
         .BorderColor(Colors.Grey.Lighten3)
         .Background(row % 2 == 0 ? Colors.White : Colors.Grey.Lighten4)
-        .Padding(2, Unit.Point)
+        .Padding(1, Unit.Point)
         .ShowOnce()
         .AlignMiddle();
 
