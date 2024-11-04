@@ -9,7 +9,9 @@ using Markdig;
 using ClosedXML.Excel;
 using BlazorDownloadFile;
 using FLLScheduler.Shared;
-using DocumentFormat.OpenXml.Vml.Office;
+using System.Text.Json.Serialization;
+using DocumentFormat.OpenXml.Spreadsheet;
+using System.IO;
 
 namespace FLLScheduler.Pages;
 
@@ -46,13 +48,13 @@ public partial class Index
     private string Breaks { get; set; }
     private string TableNames { get; set; }
     private string Teams { get; set; }
-    private List<string> Errors = [];
+    private readonly List<string> Errors = [];
 
     private MarkupString GridsToShow { get; set; }
     private readonly MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
     private ResponseModel Response;
     private bool exporting = false;
-    private bool exportingPdf = false;   
+    private bool exportingPdf = false;
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -130,8 +132,7 @@ public partial class Index
         }
 
         var httpClient = ClientFactory.CreateClient("API");
-        var json = new StringContent(JsonSerializer.Serialize(Profile), Encoding.UTF8, "application/json");
-        using var response = await httpClient.PostAsync("api/CalculateSchedule", json);
+        using var response = await httpClient.PostAsJsonAsync("api/CalculateSchedule", Profile);
         if (response.IsSuccessStatusCode)
         {
             var responseModel = await response.Content.ReadFromJsonAsync<ResponseModel>();
@@ -146,7 +147,7 @@ public partial class Index
         if (Profile == null) Errors.Add("Invalid configuration");
         else if (Profile.Event == null) Errors.Add("Invalid Event configuration");
         else if (Profile.Teams == null) Errors.Add("Invalid Teams configuration");
-        
+
         if (Profile.Judging == null) Errors.Add("Invalid Judging configuration");
         else if (Profile.Judging.Pods == null) Errors.Add("Invalid Judging Pods configuration");
         else if (Profile.Judging.Pods.Length == 0) Errors.Add("Invalid Judging Pods configuration");
@@ -162,7 +163,7 @@ public partial class Index
 
     private void ShowResults()
     {
-        var pivots = Response.Pivots;
+        var pivots = new Pivots(Response.Context);
         var md = new StringBuilder();
         md.AppendLine($"# {Response.Request.Name}{{#name .profile-name .mud-typography .mud-typography-h4}}");
         md.AppendLine($"## Generated {Response.GeneratedUtc.ToLocalTime():dddd MMM-dd h\\:mm tt}{{#time .profile-time .mud-typography .mud-typography-h5}}");
@@ -271,6 +272,7 @@ public partial class Index
         }
 
         GridsToShow = (MarkupString)Markdown.ToHtml(md.ToString(), pipeline);
+        StateHasChanged();
     }
 
     [Inject] IBlazorDownloadFileService BlazorDownloadFileService { get; set; }
@@ -285,14 +287,14 @@ public partial class Index
         {
             // send request to server to generate PDF and download
             var httpClient = ClientFactory.CreateClient("API");
-            var json = new StringContent(JsonSerializer.Serialize(Response.Pivots), Encoding.UTF8, "application/json");
-            using var response = await httpClient.PostAsync("api/GeneratePDF", json);
+            using var response = await httpClient.PostAsJsonAsync("api/GeneratePDF", Response.Context);
             if (response.IsSuccessStatusCode)
             {
-                var responsePDF = await response.Content.ReadAsStreamAsync();
-                await BlazorDownloadFileService.DownloadFile("Schedules.pdf", responsePDF, "application/pdf");
+                //var responsePDF = await response.Content.ReadAsStreamAsync();
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                await BlazorDownloadFileService.DownloadFile("Schedules.pdf", bytes, "application/pdf");
             }
-            exporting = false;
+            exportingPdf = false;
         });
     }
 
@@ -303,7 +305,7 @@ public partial class Index
         exporting = true;
         await Task.Run(async () =>
         {
-            var pivots = Response.Pivots;
+            var pivots = new Pivots(Response.Context);
             var wb = new XLWorkbook();
             foreach (var pivotEntry in pivots)
             {
@@ -436,26 +438,24 @@ public partial class Index
     }
 
     private static readonly List<RequestModel> Profiles = new[]
-        {
-            (teamcount: 12, tablecount: 2),
-            (teamcount: 18, tablecount: 4),
-            (teamcount: 24, tablecount: 4),
-            (teamcount: 36, tablecount: 4),
-            (teamcount: 48, tablecount: 6),
-            (teamcount: 60, tablecount: 10)
-        }
-        .Select(e => BuildRequest(e.teamcount, e.tablecount))
-        .ToList();
-
-    private static RequestModel BuildRequest(int teamcount, int tablecount)
     {
-        // Ensure even number of tables specfified
-        ArgumentOutOfRangeException.ThrowIfNotEqual(0, tablecount % 2, nameof(tablecount));
+        //(teamcount: 6, tablecount: 2),
+        (teamcount: 12, tablecount: 2),
+        (teamcount: 18, tablecount: 4),
+        (teamcount: 24, tablecount: 4),
+        (teamcount: 36, tablecount: 6),
+        (teamcount: 48, tablecount: 6),
+        (teamcount: 60, tablecount: 10)
+    }
+    .Select(e => BuildProfile(e.teamcount, e.tablecount))
+    .ToList();
 
-        var podcount = Convert.ToInt32(Math.Ceiling(teamcount / 6d));   // always a max of 6 teams judged per pod
+    private static RequestModel BuildProfile(int teamcount, int tablecount)
+    {
         var allteams = Enumerable.Range(1001, teamcount)
             .Select(i => new Team { Number = i, Name = $"team {i:0000}" })
             .ToArray();
+        var podcount = Convert.ToInt32(Math.Ceiling(teamcount / 6d));   // always a max of 6 teams judged per pod
         var allpods = Enumerable.Range(1, podcount)
             .Select(i => $"Pod {i}")
             .ToArray();
@@ -532,7 +532,7 @@ public static partial class ClosedXMLHelpers
     public static void FixStyles(IXLTable table)
     {
         var headerrow = table.Row(1);
-        
+
         foreach (var cell in headerrow.CellsUsed())
         {
             // convert the cell value to text split by pascal casing
@@ -562,4 +562,55 @@ public static partial class ClosedXMLHelpers
 
     [GeneratedRegex(@"(?<!^)(?<!-)((?<=\p{Ll})[\p{Lu}\d]|\p{Lu}(?=\p{Ll}))")]
     private static partial Regex PascalCaseRegex();
+}
+
+public class ConverterWithTypeDiscriminator : JsonConverter<object>
+{
+    public override bool CanConvert(Type typeToConvert) => typeof(PivotEntry).IsAssignableFrom(typeToConvert);
+
+    public override object Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.StartObject)
+        {
+            throw new JsonException();
+        }
+
+        reader.Read();
+        if (reader.TokenType != JsonTokenType.PropertyName)
+        {
+            throw new JsonException();
+        }
+
+        var propertyName = reader.GetString();
+        if (propertyName != "Name")
+        {
+            throw new JsonException();
+        }
+
+        //reader.Read();
+        //if (reader.TokenType != JsonTokenType.Number)
+        //{
+        //    throw new JsonException();
+        //}
+
+        var typeDiscriminator = (PivotType)reader.GetInt32();
+        return typeDiscriminator switch
+        {
+            PivotType.RobotGameTableSchedule => new RobotGameTableEntry(),
+            PivotType.PodJudgingSchedule => new PodJudgingEntry(),
+            PivotType.JudgingSchedule => new FlexEntry(),
+            PivotType.JudgingQueuingSchedule => new JudgingQueuingEntry(),
+            PivotType.TeamSchedule => new TeamScheduleEntry(),
+            PivotType.Registration => new RegistrationEntry(),
+            PivotType.RobotGameSchedule => new FlexEntry(),
+            PivotType.RobotGameQueuingSchedule => new RobotGameQueuingEntry(),
+            _ => throw new JsonException()
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, object obj, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteEndObject();
+    }
 }

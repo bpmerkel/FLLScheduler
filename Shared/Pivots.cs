@@ -14,8 +14,12 @@ public enum PivotType
 
 public class Pivots : List<PivotEntry>
 {
-    public Pivots(RequestModel request, TeamSchedule[] master)
+    public Pivots(ScheduleContext context)
     {
+        var master = context.Schedule;
+        var pods = context.Pods;
+        var tables = context.Tables;
+
         Add(new PivotEntry
         {
             Name = "Registration",
@@ -73,29 +77,29 @@ public class Pivots : List<PivotEntry>
                 .ToArray()
             });
 
-        //Add(new PivotEntry
-        //{
-        //    Name = "Judging Schedule",
-        //    Pivot = PivotType.JudgingSchedule,
-        //    Data = master
-        //        .GroupBy(t => t.JudgingStart)
-        //        .Select(g => new { Time = g.Key, Sessions = g.ToArray() })
-        //        .Select(e =>
-        //        {
-        //            var schedule = new FlexEntry { Time = e.Time, Columns = request.Judging.Pods, Row = [] };
-        //            foreach (var pod in schedule.Columns)
-        //            {
-        //                var assignment = e.Sessions.FirstOrDefault(s => s.JudgingPod == pod);
-        //                schedule.Row.Add(assignment == null
-        //                    ? "-"
-        //                    : $"{assignment.Number} - {assignment.Name}");
-        //            }
-        //            return schedule;
-        //        })
-        //        .ToArray()
-        //    });
+        Add(new PivotEntry
+        {
+            Name = "Judging Schedule",
+            Pivot = PivotType.JudgingSchedule,
+            Data = master
+                .GroupBy(t => t.JudgingStart)
+                .Select(g => new { Time = g.Key, Sessions = g.ToArray() })
+                .Select(e =>
+                {
+                    var schedule = new FlexEntry { Time = e.Time, Columns = pods, Row = [] };
+                    foreach (var pod in schedule.Columns)
+                    {
+                        var assignment = e.Sessions.FirstOrDefault(s => s.JudgingPod == pod);
+                        schedule.Row.Add(assignment == null
+                            ? "-"
+                            : $"{assignment.Number} - {assignment.Name}");
+                    }
+                    return schedule;
+                })
+                .ToArray()
+        });
 
-        foreach (var pod in request.Judging.Pods)
+        foreach (var pod in pods)
         {
             Add(new PivotEntry
             {
@@ -161,7 +165,7 @@ public class Pivots : List<PivotEntry>
             })
             .OrderBy(e => e.QueueTime)
             // order tables in the order given in the request
-            .ThenBy(e => request.RobotGame.Tables.Select((t, i) => (t, i)).First(ee => ee.t == e.Table).i)
+            .ThenBy(e => tables.Select((t, i) => (t, i)).First(ee => ee.t == e.Table).i)
             .ToArray();
         Add(new PivotEntry
         {
@@ -170,30 +174,30 @@ public class Pivots : List<PivotEntry>
             Data = games
         });
 
-        //var combined = games
-        //    .GroupBy(game => game.MatchTime)
-        //    .Select(g => new { Time = g.Key, Games = g.ToArray() })
-        //    .Select(e =>
-        //    {
-        //        var schedule = new FlexEntry { Time = e.Time, Columns = request.RobotGame.Tables, Row = [] };
-        //        foreach (var table in schedule.Columns)
-        //        {
-        //            var assignment = e.Games.FirstOrDefault(g => g.Table == table);
-        //            schedule.Row.Add(assignment == null
-        //                ? "-"
-        //                : $"{assignment.Team} - {assignment.Name} ({assignment.Match})");
-        //        }
-        //        return schedule;
-        //    })
-        //    .ToArray();
-        //Add(new PivotEntry
-        //{
-        //    Name = "Robot Game Schedule",
-        //    Pivot = PivotType.RobotGameSchedule,
-        //    Data = combined
-        //});
+        var combined = games
+            .GroupBy(game => game.MatchTime)
+            .Select(g => new { Time = g.Key, Games = g.ToArray() })
+            .Select(e =>
+            {
+                var schedule = new FlexEntry { Time = e.Time, Columns = tables, Row = [] };
+                foreach (var table in schedule.Columns)
+                {
+                    var assignment = e.Games.FirstOrDefault(g => g.Table == table);
+                    schedule.Row.Add(assignment == null
+                        ? "-"
+                        : $"{assignment.Team} - {assignment.Name} ({assignment.Match})");
+                }
+                return schedule;
+            })
+            .ToArray();
+        Add(new PivotEntry
+        {
+            Name = "Robot Game Schedule",
+            Pivot = PivotType.RobotGameSchedule,
+            Data = combined
+        });
 
-        foreach (var table in request.RobotGame.Tables)
+        foreach (var table in tables)
         {
             var gamesattable = games
                 .Where(g => g.Table == table)

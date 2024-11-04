@@ -166,24 +166,28 @@ public partial class API
         return new ResponseModel
         {
             Request = request,
-            Pivots = new Pivots(request, teams
-                .Select(team => new TeamSchedule
-                {
-                    Number = team.Number,
-                    Name = team.Name,
-                    JudgingStart = team.JudgingStart,
-                    JudgingPod = team.JudgingPod,
-                    PracticeStart = team.Match[0].Start,
-                    PracticeTable = team.Match[0].Table,
-                    Match1Start = team.Match[1].Start,
-                    Match1Table = team.Match[1].Table,
-                    Match2Start = team.Match[2].Start,
-                    Match2Table = team.Match[2].Table,
-                    Match3Start = team.Match[3].Start,
-                    Match3Table = team.Match[3].Table
-                })
-                .ToArray()
-            )
+            Context = new ScheduleContext
+            {
+                Pods = request.Judging.Pods,
+                Tables = request.RobotGame.Tables,
+                Schedule = teams
+                    .Select(team => new TeamSchedule
+                    {
+                        Number = team.Number,
+                        Name = team.Name,
+                        JudgingStart = team.JudgingStart,
+                        JudgingPod = team.JudgingPod,
+                        PracticeStart = team.Match[0].Start,
+                        PracticeTable = team.Match[0].Table,
+                        Match1Start = team.Match[1].Start,
+                        Match1Table = team.Match[1].Table,
+                        Match2Start = team.Match[2].Start,
+                        Match2Table = team.Match[2].Table,
+                        Match3Start = team.Match[3].Start,
+                        Match3Table = team.Match[3].Table
+                    })
+                    .ToArray()
+            }
         };
     }
 }

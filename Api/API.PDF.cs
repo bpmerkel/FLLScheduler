@@ -13,6 +13,8 @@ using QuestPDF.Fluent;
 using System.Text.RegularExpressions;
 using QuestPDF.Helpers;
 
+namespace ApiIsolated;
+
 /// <summary>
 /// Represents a class that handles HTTP triggers.
 /// </summary>
@@ -34,7 +36,8 @@ public partial class API
         var logger = executionContext.GetLogger("HttpTrigger1");
         logger.LogInformation("GeneratePDF function processed a request.");
 
-        var pivots = await req.ReadFromJsonAsync<Pivots>();
+        var context = await req.ReadFromJsonAsync<ScheduleContext>();
+        var pivots = new Pivots(context);
 
         // validate the incoming request
         ArgumentNullException.ThrowIfNull(pivots, nameof(pivots));
@@ -42,7 +45,8 @@ public partial class API
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         using var ms = ProcessPivots(pivots);
-        response.Body = ms;
+        ms.Position = 0;
+        await ms.CopyToAsync(response.Body);
         logger.LogMetric("TransactionTimeMS", sw.Elapsed.TotalMilliseconds);
         return response;
     }
@@ -57,7 +61,6 @@ public partial class API
         {
             foreach (var pivotEntry in pivots)
             {
-                // GeneratePdfSection(data, name, "Manatee Robot Mayhem Practice Tournament", container);
                 switch (pivotEntry.Pivot)
                 {
                     case PivotType.Registration:
@@ -70,7 +73,7 @@ public partial class API
                         GeneratePdfSection<JudgingQueuingEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
                         break;
                     case PivotType.JudgingSchedule:
-                        //GeneratePdfSection<RegistrationEntry>(pivotEntry.data, pivotEntry.pivot, eventName, logo1, logo2, container);
+                        GeneratePdfSection<FlexEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
                         break;
                     case PivotType.PodJudgingSchedule:
                         GeneratePdfSection<PodJudgingEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
@@ -79,7 +82,7 @@ public partial class API
                         GeneratePdfSection<RobotGameQueuingEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
                         break;
                     case PivotType.RobotGameSchedule:
-                        //GeneratePdfSection<RegistrationEntry>(FlexEntry.Pivot(pivotEntry.data), pivotEntry.pivot, eventName, logo1, logo2, container);
+                        GeneratePdfSection<FlexEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
                         break;
                     case PivotType.RobotGameTableSchedule:
                         GeneratePdfSection<RobotGameTableEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
@@ -190,7 +193,7 @@ public partial class API
                             var p = props[ci - 2];
                             var text = table.Cell().Row(si + 2).Column(ci)
                                 .Element(c => Block(c, si))
-                                .Text(p.GetValue(s).ToString());
+                                .Text(p.GetValue(s)?.ToString() ?? string.Empty);
                             if (p.Name == "Name") text.AlignLeft();
                             else text.AlignCenter();
                         }
@@ -234,7 +237,10 @@ public partial class API
 
     static string FixHeading(string heading)
     {
-        var re = new Regex(@"(?<!^)(?<!-)((?<=\p{Ll})[\p{Lu}\d]|\p{Lu}(?=\p{Ll}))");
+        var re = PascalCaseRegex();
         return re.Replace(heading, " $1");
     }
+
+    [GeneratedRegex(@"(?<!^)(?<!-)((?<=\p{Ll})[\p{Lu}\d]|\p{Lu}(?=\p{Ll}))")]
+    private static partial Regex PascalCaseRegex();
 }
