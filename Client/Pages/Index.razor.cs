@@ -455,7 +455,7 @@ public partial class Index
 
     private static readonly List<RequestModel> Profiles = new[]
     {
-        //(teamcount: 6, tablecount: 2),
+        (teamcount: 6, tablecount: 2),
         (teamcount: 12, tablecount: 2),
         (teamcount: 18, tablecount: 4),
         (teamcount: 24, tablecount: 4),
@@ -578,55 +578,4 @@ public static partial class ClosedXMLHelpers
 
     [GeneratedRegex(@"(?<!^)(?<!-)((?<=\p{Ll})[\p{Lu}\d]|\p{Lu}(?=\p{Ll}))")]
     private static partial Regex PascalCaseRegex();
-}
-
-public class ConverterWithTypeDiscriminator : JsonConverter<object>
-{
-    public override bool CanConvert(Type typeToConvert) => typeof(PivotEntry).IsAssignableFrom(typeToConvert);
-
-    public override object Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType != JsonTokenType.StartObject)
-        {
-            throw new JsonException();
-        }
-
-        reader.Read();
-        if (reader.TokenType != JsonTokenType.PropertyName)
-        {
-            throw new JsonException();
-        }
-
-        var propertyName = reader.GetString();
-        if (propertyName != "Name")
-        {
-            throw new JsonException();
-        }
-
-        //reader.Read();
-        //if (reader.TokenType != JsonTokenType.Number)
-        //{
-        //    throw new JsonException();
-        //}
-
-        var typeDiscriminator = (PivotType)reader.GetInt32();
-        return typeDiscriminator switch
-        {
-            PivotType.RobotGameTableSchedule => new RobotGameTableEntry(),
-            PivotType.PodJudgingSchedule => new PodJudgingEntry(),
-            PivotType.JudgingSchedule => new FlexEntry(),
-            PivotType.JudgingQueuingSchedule => new JudgingQueuingEntry(),
-            PivotType.TeamSchedule => new TeamScheduleEntry(),
-            PivotType.Registration => new RegistrationEntry(),
-            PivotType.RobotGameSchedule => new FlexEntry(),
-            PivotType.RobotGameQueuingSchedule => new RobotGameQueuingEntry(),
-            _ => throw new JsonException()
-        };
-    }
-
-    public override void Write(Utf8JsonWriter writer, object obj, JsonSerializerOptions options)
-    {
-        writer.WriteStartObject();
-        writer.WriteEndObject();
-    }
 }

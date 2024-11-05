@@ -63,7 +63,7 @@ public partial class API
     private static ResponseModel ProcessRequest(RequestModel request)
     {
         // always seed with same value for deterministic results
-        var rnd = new Random(0);
+        var rnd = new Random();
 
         // map the incoming teams to the local working class, and randomize
         var teams = request.Teams
@@ -100,34 +100,38 @@ public partial class API
         // assign times until all teams are all scheduled
         while (!teams.All(team => team.Match.All(match => match.Assigned)))
         {
-            // skip teams that have a conflict with a team's judging time
             var teamsthatcanplaythisslot = teams
-                .OrderBy(team => rnd.Next())
                 .Where(team => team.Match.Any(match => !match.Assigned))
                 .Where(team =>
                 {
+                    // skip teams that have a conflict with their judging time
                     // skip judging + buffer
                     var maxbuffer = Math.Max(request.Judging.BufferMinutes, request.RobotGame.BufferMinutes);
-                    var start = team.JudgingStart.AddMinutes(-maxbuffer);
-                    var end = team.JudgingStart.AddMinutes(request.Judging.CycleTimeMinutes).AddMinutes(request.Judging.BufferMinutes);
+                    var start = team.JudgingStart.AddMinutes(-maxbuffer + 1);
+                    var end = team.JudgingStart.AddMinutes(request.Judging.CycleTimeMinutes).AddMinutes(request.Judging.BufferMinutes - 1);
                     return !slot.IsBetween(start, end);
                 })
                 .Where(team =>
                 {
-                    // skip teams with time slots already booked + buffer
-                    var start = team.Match.Min(m => m.Start);
-                    var end = team.Match.Max(m => m.Start.AddMinutes(request.RobotGame.CycleTimeMinutes)).AddMinutes(request.RobotGame.BufferMinutes);
+                    // skip teams with the slot already booked + buffer
+                    var start = team.Match.Min(m => m.Start).AddMinutes(1);
+                    var end = team.Match.Max(m => m.Start.AddMinutes(request.RobotGame.CycleTimeMinutes)).AddMinutes(request.RobotGame.BufferMinutes - 1);
                     return !slot.IsBetween(start, end);
                 })
-                .OrderBy(team => team.Match.Select((m, i) => new { m, i }).First(e => !e.m.Assigned).i)
+                .OrderBy(team => team.Match
+                    .Select((m, i) => new { m, i })
+                    .First(e => !e.m.Assigned).i) // prefer candidate teams with lowest match due
+                //.ThenBy(team => team.JudgingStart > slot ? 0 : 1)    // prefer candidate teams with later judging times
+                .ThenBy(team => team.Match.Min(m => m.TableIndex))
                 .ToArray();
 
             // fill all tables for this slot 
             foreach (var team in teamsthatcanplaythisslot)
             {
-                // for this team, get the match index of the first available match 
+                // for this team, get the first available match
                 var match = team.Match.First(m => !m.Assigned);
                 match.Start = slot;
+                match.TableIndex = tablecounter;
                 match.Table = request.RobotGame.Tables[tablecounter];
                 match.Assigned = true;
 
@@ -142,6 +146,7 @@ public partial class API
 
             // increment to the next timeslot
             slot = slot.AddMinutes(request.RobotGame.CycleTimeMinutes);
+            tablecounter = 0;
 
             // skip to afternoon if next slot overlaps into lunch 
             var end = slot.AddMinutes(request.RobotGame.CycleTimeMinutes);
@@ -199,5 +204,13 @@ class WorkingTeam
     public string Name { get; init; }
     public TimeOnly JudgingStart { get; set; }
     public string JudgingPod { get; set; }
-    public RobotGameMatch[] Match { get; init; } = [new RobotGameMatch(), new RobotGameMatch(), new RobotGameMatch(), new RobotGameMatch()];
+    public WorkingMatch[] Match { get; init; } = [new WorkingMatch(), new WorkingMatch(), new WorkingMatch(), new WorkingMatch()];
+}
+
+public class WorkingMatch
+{
+    public TimeOnly Start { get; set; }
+    public string Table { get; set; }
+    public int TableIndex { get; set; }
+    public bool Assigned { get; set; }
 }
