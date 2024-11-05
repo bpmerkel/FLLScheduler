@@ -38,23 +38,22 @@ public partial class API
         logger.LogInformation("GeneratePDF function processed a request.");
 
         var context = await req.ReadFromJsonAsync<ScheduleContext>();
-        var pivots = new Pivots(context);
-
-        // validate the incoming request
-        ArgumentNullException.ThrowIfNull(pivots, nameof(pivots));
-        ArgumentOutOfRangeException.ThrowIfZero(pivots.Count, nameof(pivots));
-
         var response = req.CreateResponse(HttpStatusCode.OK);
-        using var ms = ProcessPivots(pivots);
+        using var ms = ProcessPivots(context);
         ms.Position = 0;
         await ms.CopyToAsync(response.Body);
         logger.LogMetric("TransactionTimeMS", sw.Elapsed.TotalMilliseconds);
         return response;
     }
 
-    private static MemoryStream ProcessPivots(Pivots pivots)
+    private static MemoryStream ProcessPivots(ScheduleContext context)
     {
-        var eventName = "Manatee Robot Mayhem Practice Tournament";
+        var pivots = new Pivots(context);
+        // validate the incoming request
+        ArgumentNullException.ThrowIfNull(pivots, nameof(pivots));
+        ArgumentOutOfRangeException.ThrowIfZero(pivots.Count, nameof(pivots));
+
+        var eventName = context.Name;
         var logo1 = LoadEmbedded("SUBMERGED.png");
         var logo2 = LoadEmbedded("BOTLogo.png");
         QuestPDF.Settings.License = LicenseType.Community;
@@ -74,7 +73,7 @@ public partial class API
                         GeneratePdfSection<JudgingQueuingEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
                         break;
                     case PivotType.JudgingSchedule:
-                        GeneratePdfSection<FlexEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
+                        //GeneratePdfSection<FlexEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
                         break;
                     case PivotType.PodJudgingSchedule:
                         GeneratePdfSection<PodJudgingEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
@@ -83,7 +82,7 @@ public partial class API
                         GeneratePdfSection<RobotGameQueuingEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
                         break;
                     case PivotType.RobotGameSchedule:
-                        GeneratePdfSection<FlexEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
+                        //GeneratePdfSection<FlexEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
                         break;
                     case PivotType.RobotGameTableSchedule:
                         GeneratePdfSection<RobotGameTableEntry>(pivotEntry.Data, pivotEntry.Name, eventName, logo1, logo2, container);
@@ -116,7 +115,7 @@ public partial class API
             }
             else
             {
-                page.Size(props.Length > 10 ? PageSizes.B0.Landscape() : PageSizes.B0.Portrait());
+                page.Size(props.Length > 10 ? PageSizes.Letter.Landscape() : PageSizes.Letter.Portrait());
             }
             page.Margin(.5f, Unit.Inch);
             page.PageColor(Colors.White);
@@ -237,7 +236,6 @@ public partial class API
                         table.Cell().Row(si + 2).Column(1)
                             .Element(c => Block(c, si))
                             .Text("\u2610") // unchecked checkbox
-                            .Thin()
                             .AlignCenter();
                         var s = data.GetValue(si);
                         if (isFlex)
@@ -247,7 +245,6 @@ public partial class API
                             table.Cell().Row(si + 2).Column(2)
                                 .Element(c => Block(c, si))
                                 .Text($"{row.Time:h:mm tt}")
-                                .Thin()
                                 .AlignCenter();
 
                             for (var ci = 0; ci < flexColumns.Length; ++ci)
@@ -256,7 +253,6 @@ public partial class API
                                 table.Cell().Row(si + 2).Column((uint)ci + 3)
                                     .Element(c => Block(c, si))
                                     .Text(row.Row[ci])
-                                    .Thin()
                                     .AlignCenter();
                             }
                         }
@@ -267,8 +263,7 @@ public partial class API
                                 var p = props[ci];
                                 var text = table.Cell().Row(si + 2).Column(ci + 2)
                                     .Element(c => Block(c, si))
-                                    .Text(p.GetValue(s)?.ToString() ?? string.Empty)
-                                    .Thin();
+                                    .Text(p.GetValue(s)?.ToString() ?? string.Empty);
                                 if (p.Name == "Name") text.AlignLeft();
                                 else text.AlignCenter();
                             }

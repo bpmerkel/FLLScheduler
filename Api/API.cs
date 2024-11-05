@@ -168,6 +168,7 @@ public partial class API
             Request = request,
             Context = new ScheduleContext
             {
+                Name = request.Name,
                 Pods = request.Judging.Pods,
                 Tables = request.RobotGame.Tables,
                 Schedule = teams

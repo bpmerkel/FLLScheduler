@@ -10,6 +10,7 @@ using ClosedXML.Excel;
 using BlazorDownloadFile;
 using FLLScheduler.Shared;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Components.Web;
 
 namespace FLLScheduler.Pages;
 
@@ -43,8 +44,10 @@ public partial class Index
     private int RobotGameBufferMinutes { get; set; }
     private int BreakDurationMinutes { get; set; }
     private string PodNames { get; set; }
+    private int TotalPods { get; set; } = 1;
     private string Breaks { get; set; }
     private string TableNames { get; set; }
+    private int TotalTables { get; set; } = 2;
     private string Teams { get; set; }
     private readonly List<string> Errors = [];
 
@@ -53,9 +56,7 @@ public partial class Index
     private ResponseModel Response;
     private bool exportingExcel = false;
     private bool exportingPdf = false;
-    private readonly string[] Pods = { "Pod 1", "Pod 2", "Pod 3", "Pod 4", "Pod 5", "Pod 6", "Pod 7", "Pod 8", "Pod 9", "Pod 10" };
-    private readonly string[] Tables = { "Atlantic\nPacific", "Indian\nArctic", "Southern\nProcellarum", "Boreum\nEuropa", "Enceladus\nGanymede", "Titan\nCallisto" };
-    private int PodsSelected = 0;
+    private readonly string[] Tables = ["Atlantic", "Pacific", "Indian", "Arctic", "Southern", "Procellarum", "Boreum", "Europa", "Enceladus", "Ganymede", "Titan", "Callisto"];
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -81,7 +82,9 @@ public partial class Index
         RobotGameBufferMinutes = Profile.RobotGame.BufferMinutes;
         BreakDurationMinutes = Profile.RobotGame.BreakDurationMinutes;
         PodNames = string.Join(", ", Profile.Judging.Pods);
+        TotalPods = Profile.Judging.Pods.Length;
         TableNames = string.Join(", ", Profile.RobotGame.Tables);
+        TotalTables = Profile.RobotGame.Tables.Length;
         Breaks = string.Join(", ", Profile.RobotGame.BreakTimes.Select(t => $"{t:h\\:mm tt}"));
         Teams = string.Join(Environment.NewLine, Profile.Teams.Select(t => $"{t.Number}, {t.Name}"));
         await ServerReload();
@@ -123,6 +126,18 @@ public partial class Index
         Profile = profile;
 
         await ServerReload();
+    }
+
+    private void DoIdentifyPods(int podcount)
+    {
+        TotalPods = podcount;
+        PodNames = string.Join(", ", Enumerable.Range(1, podcount).Select(i => $"Pod {i}"));
+    }
+
+    private void DoIdentifyTables(int tablecount)
+    {
+        TotalTables = tablecount;
+        TableNames = string.Join(", ", Tables[..tablecount]);
     }
 
     private async Task ServerReload()

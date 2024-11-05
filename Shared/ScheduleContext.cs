@@ -4,6 +4,8 @@ namespace FLLScheduler.Shared;
 
 public class ScheduleContext
 {
+    [JsonPropertyName("name")]
+    public string Name { get; set; }
     [JsonPropertyName("pods")]
     public string[] Pods { get; set; }
     [JsonPropertyName("tables")]
