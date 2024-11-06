@@ -2,15 +2,12 @@ using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MudBlazor.Services;
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text;
 using System.Text.RegularExpressions;
 using Markdig;
 using ClosedXML.Excel;
 using BlazorDownloadFile;
 using FLLScheduler.Shared;
-using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Components.Web;
 
 namespace FLLScheduler.Pages;
 
@@ -49,27 +46,27 @@ public partial class Index
     private string TableNames { get; set; }
     private int TotalTables { get; set; } = 2;
     private string Teams { get; set; }
-    private readonly List<string> Errors = [];
-
+    private List<string> Errors { get; init; } = [];
     private MarkupString GridsToShow { get; set; }
+    private bool Generating { get; set; } = false;
+    private bool ExportingExcel { get; set; } = false;
+    private bool ExportingPdf { get; set; } = false;
+    private readonly string[] Tables = ["Atlantic", "Pacific", "Indian", "Arctic", "Southern", "Procellarum", "Boreum", "Europa", "Enceladus", "Ganymede", "Titan", "Callisto"];
     private readonly MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
     private ResponseModel Response;
-    private bool generating = false;
-    private bool exportingExcel = false;
-    private bool exportingPdf = false;
-    private readonly string[] Tables = ["Atlantic", "Pacific", "Indian", "Arctic", "Southern", "Procellarum", "Boreum", "Europa", "Enceladus", "Ganymede", "Titan", "Callisto"];
 
     protected override async void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
             await DoProfileSelected(Profiles[0]);
+            StateHasChanged();
         }
     }
 
     private async Task DoProfileSelected(RequestModel value)
     {
-        generating = true;
+        Generating = true;
         await Task.Run(async () =>
         {
             Profile = value;
@@ -92,13 +89,13 @@ public partial class Index
             Breaks = string.Join(", ", Profile.RobotGame.BreakTimes.Select(t => $"{t:h\\:mm tt}"));
             Teams = string.Join(Environment.NewLine, Profile.Teams.Select(t => $"{t.Number}, {t.Name}"));
             await ServerReload();
-            generating = false;
+            Generating = false;
         });
     }
 
     private async Task DoUpdateSchedule()
     {
-        generating = true;
+        Generating = true;
         await Task.Run(async () =>
         {
             // generate an updated profile based on the modifications in the UI
@@ -135,7 +132,7 @@ public partial class Index
             Profile = profile;
 
             await ServerReload();
-            generating = false;
+            Generating = false;
         });
     }
 
@@ -304,11 +301,11 @@ public partial class Index
 
     [Inject] IBlazorDownloadFileService BlazorDownloadFileService { get; set; }
 
-    // export to Excel using ClosedXml
+    // export to PDF from the API layer
     private async Task DoExportPdf()
     {
         if (Response == null) return;
-        exportingPdf = true;
+        ExportingPdf = true;
 
         await Task.Run(async () =>
         {
@@ -320,7 +317,7 @@ public partial class Index
                 var bytes = await response.Content.ReadAsByteArrayAsync();
                 await BlazorDownloadFileService.DownloadFile("Schedules.pdf", bytes, "application/pdf");
             }
-            exportingPdf = false;
+            ExportingPdf = false;
         });
     }
 
@@ -328,7 +325,7 @@ public partial class Index
     private async Task DoExportExcel()
     {
         if (Response == null) return;
-        exportingExcel = true;
+        ExportingExcel = true;
 
         await Task.Run(async () =>
         {
@@ -382,7 +379,7 @@ public partial class Index
             wb.SaveAs(ms);
             await BlazorDownloadFileService.DownloadFile("Schedules.xlsx", ms, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             ms.Flush();
-            exportingExcel = false;
+            ExportingExcel = false;
         });
     }
 

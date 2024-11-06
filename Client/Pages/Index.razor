@@ -110,8 +110,8 @@
 
             <MudItem xs="7">
                 <MudStack Row="true">
-                    <MudButton OnClick="DoUpdateSchedule" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Refresh" Color="Color.Primary">
-                        @if (generating)
+                    <MudButton Disabled="@Generating" OnClick="DoUpdateSchedule" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Refresh" Color="Color.Primary">
+                        @if (Generating)
                         {
                             <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
                             <MudText Class="ms-2">Generating...</MudText>
@@ -121,8 +121,8 @@
                             <MudText>Generate Schedules</MudText>
                         }
                     </MudButton>
-                    <MudButton Disabled="@exportingExcel" OnClick="DoExportExcel" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Tertiary">
-                        @if (exportingExcel)
+                    <MudButton Disabled="@ExportingExcel" OnClick="DoExportExcel" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Tertiary">
+                        @if (ExportingExcel)
                         {
                             <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
                             <MudText Class="ms-2">Exporting...</MudText>
@@ -132,8 +132,8 @@
                             <MudText>Export Excel</MudText>
                         }
                     </MudButton>
-                    <MudButton Disabled="@exportingPdf" OnClick="DoExportPdf" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Tertiary">
-                        @if (exportingPdf)
+                    <MudButton Disabled="@ExportingPdf" OnClick="DoExportPdf" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Tertiary">
+                        @if (ExportingPdf)
                         {
                             <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
                             <MudText Class="ms-2">Exporting...</MudText>
