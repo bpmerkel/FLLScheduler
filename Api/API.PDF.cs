@@ -2,17 +2,17 @@ using System;
 using System.Diagnostics;
 using System.Net;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
+using System.IO;
+using System.Linq;
+using System.Reflection;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using FLLScheduler.Shared;
-using System.IO;
 using QuestPDF.Infrastructure;
-using System.Reflection;
 using QuestPDF.Fluent;
-using System.Text.RegularExpressions;
 using QuestPDF.Helpers;
-using System.Linq;
+using FLLScheduler.Shared;
 
 namespace ApiIsolated;
 

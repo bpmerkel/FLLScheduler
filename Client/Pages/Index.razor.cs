@@ -54,6 +54,7 @@ public partial class Index
     private MarkupString GridsToShow { get; set; }
     private readonly MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
     private ResponseModel Response;
+    private bool generating = false;
     private bool exportingExcel = false;
     private bool exportingPdf = false;
     private readonly string[] Tables = ["Atlantic", "Pacific", "Indian", "Arctic", "Southern", "Procellarum", "Boreum", "Europa", "Enceladus", "Ganymede", "Titan", "Callisto"];
@@ -68,64 +69,74 @@ public partial class Index
 
     private async Task DoProfileSelected(RequestModel value)
     {
-        Profile = value;
-        RegistrationTime = Profile.Event.RegistrationTime.ToTimeSpan();
-        CoachesMeetingTime = Profile.Event.CoachesMeetingTime.ToTimeSpan();
-        OpeningCeremonyTime = Profile.Event.OpeningCeremonyTime.ToTimeSpan();
-        LunchStartTime = Profile.Event.LunchStartTime.ToTimeSpan();
-        LunchEndTime = Profile.Event.LunchEndTime.ToTimeSpan();
-        JudgingStartTime = Profile.Judging.StartTime.ToTimeSpan();
-        RobotGamesStartTime = Profile.RobotGame.StartTime.ToTimeSpan();
-        CycleTimeMinutes = Profile.Judging.CycleTimeMinutes;
-        JudgingBufferMinutes = Profile.Judging.BufferMinutes;
-        RobotGameCycleTimeMinutes = Profile.RobotGame.CycleTimeMinutes;
-        RobotGameBufferMinutes = Profile.RobotGame.BufferMinutes;
-        BreakDurationMinutes = Profile.RobotGame.BreakDurationMinutes;
-        PodNames = string.Join(", ", Profile.Judging.Pods);
-        TotalPods = Profile.Judging.Pods.Length;
-        TableNames = string.Join(", ", Profile.RobotGame.Tables);
-        TotalTables = Profile.RobotGame.Tables.Length;
-        Breaks = string.Join(", ", Profile.RobotGame.BreakTimes.Select(t => $"{t:h\\:mm tt}"));
-        Teams = string.Join(Environment.NewLine, Profile.Teams.Select(t => $"{t.Number}, {t.Name}"));
-        await ServerReload();
+        generating = true;
+        await Task.Run(async () =>
+        {
+            Profile = value;
+            RegistrationTime = Profile.Event.RegistrationTime.ToTimeSpan();
+            CoachesMeetingTime = Profile.Event.CoachesMeetingTime.ToTimeSpan();
+            OpeningCeremonyTime = Profile.Event.OpeningCeremonyTime.ToTimeSpan();
+            LunchStartTime = Profile.Event.LunchStartTime.ToTimeSpan();
+            LunchEndTime = Profile.Event.LunchEndTime.ToTimeSpan();
+            JudgingStartTime = Profile.Judging.StartTime.ToTimeSpan();
+            RobotGamesStartTime = Profile.RobotGame.StartTime.ToTimeSpan();
+            CycleTimeMinutes = Profile.Judging.CycleTimeMinutes;
+            JudgingBufferMinutes = Profile.Judging.BufferMinutes;
+            RobotGameCycleTimeMinutes = Profile.RobotGame.CycleTimeMinutes;
+            RobotGameBufferMinutes = Profile.RobotGame.BufferMinutes;
+            BreakDurationMinutes = Profile.RobotGame.BreakDurationMinutes;
+            PodNames = string.Join(", ", Profile.Judging.Pods);
+            TotalPods = Profile.Judging.Pods.Length;
+            TableNames = string.Join(", ", Profile.RobotGame.Tables);
+            TotalTables = Profile.RobotGame.Tables.Length;
+            Breaks = string.Join(", ", Profile.RobotGame.BreakTimes.Select(t => $"{t:h\\:mm tt}"));
+            Teams = string.Join(Environment.NewLine, Profile.Teams.Select(t => $"{t.Number}, {t.Name}"));
+            await ServerReload();
+            generating = false;
+        });
     }
 
-    private async Task DoUpdateProfile()
+    private async Task DoUpdateSchedule()
     {
-        // generate an updated profile based on the modifications in the UI
-        var profile = new RequestModel();
-        profile.Event.RegistrationTime = TimeOnly.FromTimeSpan(RegistrationTime.Value);
-        profile.Event.CoachesMeetingTime = TimeOnly.FromTimeSpan(CoachesMeetingTime.Value);
-        profile.Event.OpeningCeremonyTime = TimeOnly.FromTimeSpan(OpeningCeremonyTime.Value);
-        profile.Event.LunchStartTime = TimeOnly.FromTimeSpan(LunchStartTime.Value);
-        profile.Event.LunchEndTime = TimeOnly.FromTimeSpan(LunchEndTime.Value);
-        profile.Judging.StartTime = TimeOnly.FromTimeSpan(JudgingStartTime.Value);
-        profile.RobotGame.StartTime = TimeOnly.FromTimeSpan(RobotGamesStartTime.Value);
-        profile.Judging.CycleTimeMinutes = CycleTimeMinutes;
-        profile.Judging.BufferMinutes = JudgingBufferMinutes;
-        profile.RobotGame.CycleTimeMinutes = RobotGameCycleTimeMinutes;
-        profile.RobotGame.BufferMinutes = RobotGameBufferMinutes;
-        profile.RobotGame.BreakDurationMinutes = BreakDurationMinutes;
-        profile.Judging.Pods = PodNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        profile.RobotGame.Tables = TableNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        profile.RobotGame.BreakTimes = Breaks.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(b => TimeOnly.TryParse(b, out TimeOnly t) ? t : TimeOnly.MaxValue)  // midnight if invalid
-            .ToArray();
-        profile.Teams = Teams.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(t => t.Split(",;\t ".ToCharArray(), 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .Select(pair => new Team { Number = Convert.ToInt32(pair[0]), Name = pair[1] })
-            .ToArray();
-        profile.Name = $"Customized: {profile.Teams.Length} Teams, {profile.Judging.Pods.Length} Judging Pods, {profile.RobotGame.Tables.Length} Game Tables";
-
-        var existing = Profiles.FirstOrDefault(p => p.Name == profile.Name);
-        if (existing != null)
+        generating = true;
+        await Task.Run(async () =>
         {
-            Profiles.Remove(existing);
-        }
-        Profiles.Insert(0, profile);
-        Profile = profile;
+            // generate an updated profile based on the modifications in the UI
+            var profile = new RequestModel();
+            profile.Event.RegistrationTime = TimeOnly.FromTimeSpan(RegistrationTime.Value);
+            profile.Event.CoachesMeetingTime = TimeOnly.FromTimeSpan(CoachesMeetingTime.Value);
+            profile.Event.OpeningCeremonyTime = TimeOnly.FromTimeSpan(OpeningCeremonyTime.Value);
+            profile.Event.LunchStartTime = TimeOnly.FromTimeSpan(LunchStartTime.Value);
+            profile.Event.LunchEndTime = TimeOnly.FromTimeSpan(LunchEndTime.Value);
+            profile.Judging.StartTime = TimeOnly.FromTimeSpan(JudgingStartTime.Value);
+            profile.RobotGame.StartTime = TimeOnly.FromTimeSpan(RobotGamesStartTime.Value);
+            profile.Judging.CycleTimeMinutes = CycleTimeMinutes;
+            profile.Judging.BufferMinutes = JudgingBufferMinutes;
+            profile.RobotGame.CycleTimeMinutes = RobotGameCycleTimeMinutes;
+            profile.RobotGame.BufferMinutes = RobotGameBufferMinutes;
+            profile.RobotGame.BreakDurationMinutes = BreakDurationMinutes;
+            profile.Judging.Pods = PodNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            profile.RobotGame.Tables = TableNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            profile.RobotGame.BreakTimes = Breaks.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(b => TimeOnly.TryParse(b, out TimeOnly t) ? t : TimeOnly.MaxValue)  // midnight if invalid
+                .ToArray();
+            profile.Teams = Teams.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(t => t.Split(",;\t ".ToCharArray(), 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                .Select(pair => new Team { Number = Convert.ToInt32(pair[0]), Name = pair[1] })
+                .ToArray();
+            profile.Name = $"Customized: {profile.Teams.Length} Teams, {profile.Judging.Pods.Length} Judging Pods, {profile.RobotGame.Tables.Length} Game Tables";
 
-        await ServerReload();
+            var existing = Profiles.FirstOrDefault(p => p.Name == profile.Name);
+            if (existing != null)
+            {
+                Profiles.Remove(existing);
+            }
+            Profiles.Insert(0, profile);
+            Profile = profile;
+
+            await ServerReload();
+            generating = false;
+        });
     }
 
     private void DoIdentifyPods(int podcount)
@@ -502,8 +513,11 @@ public partial class Index
             {
                 Tables = alltables,
                 StartTime = TimeOnly.Parse("9:20 am"),
-                CycleTimeMinutes = 10,
-                BufferMinutes = 10,
+                CycleTimeMinutes = allteams.Length <= 12 ? 8
+                                : allteams.Length <= 24 ? 10
+                                : allteams.Length <= 48 ? 15
+                                : 20,
+                BufferMinutes = 15,
                 BreakTimes = [TimeOnly.Parse("10:00 am"), TimeOnly.Parse("11:00 am"), TimeOnly.Parse("2:00 pm")],
                 BreakDurationMinutes = 10
             },

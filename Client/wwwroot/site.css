@@ -1,4 +1,8 @@
-﻿.highlighted {
+﻿body {
+    background: rgb(50, 51, 61);
+}
+
+.highlighted {
     background-color: transparent;
     font-weight: bold;
     color: var(--mud-palette-warning) !important;
@@ -41,7 +45,7 @@
         padding-left: 1em;
         padding-right: 1em;
         color: #fff;
-        background-color: #7C4DFF;
+        background-color: #1A237E;
         border-bottom: 2px solid #311B92;
         white-space: nowrap;
     }
@@ -52,5 +56,8 @@
         white-space: nowrap;
     }
     .markdown-table tbody tr:nth-child(even) {
-        background-color: #7C4DFF;
+        background-color: #1A237E;
+    }
+    .markdown-table tbody tr:nth-child(odd) {
+        background-color: #263238;
     }

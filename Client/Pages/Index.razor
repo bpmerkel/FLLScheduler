@@ -14,9 +14,9 @@
 
         <div class="TopSpacer"></div>
 
-        <MudGrid>
+        <MudGrid Spacing="6">
             <MudItem xs="5">
-                <MudGrid Justify="Justify.FlexStart">
+                <MudGrid Justify="Justify.FlexStart" Spacing="0">
                     <MudItem xs="12">
                         <MudAutocomplete Value="Profile" ValueChanged="DoProfileSelected" T="RequestModel" Strict="false"
                             SearchFunc="IdentifyProfiles" ToStringFunc="@(e => e==null ? null : e.Name)"
@@ -110,7 +110,17 @@
 
             <MudItem xs="7">
                 <MudStack Row="true">
-                    <MudButton OnClick="DoUpdateProfile" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Refresh" Color="Color.Primary">Generate Schedules</MudButton>
+                    <MudButton OnClick="DoUpdateSchedule" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Refresh" Color="Color.Primary">
+                        @if (generating)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Generating...</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Generate Schedules</MudText>
+                        }
+                    </MudButton>
                     <MudButton Disabled="@exportingExcel" OnClick="DoExportExcel" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Download" Color="Color.Tertiary">
                         @if (exportingExcel)
                         {

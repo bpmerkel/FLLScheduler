@@ -7,6 +7,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using FLLScheduler.Shared;
+using System.Collections.Generic;
 
 namespace ApiIsolated;
 
@@ -122,12 +123,16 @@ public partial class API
                     .Select((m, i) => new { m, i })
                     .First(e => !e.m.Assigned).i) // prefer candidate teams with lowest match due
                 //.ThenBy(team => team.JudgingStart > slot ? 0 : 1)    // prefer candidate teams with later judging times
-                .ThenBy(team => team.Match.Min(m => m.TableIndex))
                 .ToArray();
 
             // fill all tables for this slot 
-            foreach (var team in teamsthatcanplaythisslot)
+            var used = new HashSet<int>();
+            for (var i = 0; i < teamsthatcanplaythisslot.Length; ++i)
             {
+                // choose a team that hasn't played on this table yet
+                var team = teamsthatcanplaythisslot.FirstOrDefault(t => !used.Contains(t.Number) && t.Match.All(m => m.TableIndex != tablecounter))
+                    ?? teamsthatcanplaythisslot.First(t => !used.Contains(t.Number)); // avoid teams that we selected previously
+                used.Add(team.Number);
                 // for this team, get the first available match
                 var match = team.Match.First(m => !m.Assigned);
                 match.Start = slot;
