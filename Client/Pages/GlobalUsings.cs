@@ -1,0 +1,11 @@
+﻿global using System.Text;
+global using System.Text.RegularExpressions;
+global using System.Net.Http.Json;
+global using Microsoft.AspNetCore.Components;
+global using Microsoft.AspNetCore.Components.Web;
+global using FLLScheduler.Shared;
+global using MudBlazor;
+global using MudBlazor.Services;
+global using Markdig;
+global using ClosedXML.Excel;
+global using BlazorDownloadFile;

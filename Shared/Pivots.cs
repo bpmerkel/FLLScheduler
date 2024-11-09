@@ -1,5 +1,8 @@
 ﻿namespace FLLScheduler.Shared;
 
+/// <summary>
+/// Enum representing different types of pivots.
+/// </summary>
 public enum PivotType
 {
     Registration,
@@ -12,8 +15,15 @@ public enum PivotType
     RobotGameTableSchedule
 }
 
+/// <summary>
+/// Represents a collection of pivot entries.
+/// </summary>
 public class Pivots : List<PivotEntry>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Pivots"/> class.
+    /// </summary>
+    /// <param name="context">The schedule context.</param>
     public Pivots(ScheduleContext context)
     {
         var master = context.Schedule;
@@ -66,7 +76,6 @@ public class Pivots : List<PivotEntry>
                 Table = e.Table
             })
             .OrderBy(e => e.QueueTime)
-            // order tables in the order given in the request
             .ThenBy(e => tables.Select((t, i) => (t, i)).First(ee => ee.t == e.Table).i)
             .ToArray();
 
@@ -129,7 +138,7 @@ public class Pivots : List<PivotEntry>
                     Roster = string.Empty
                 })
                 .ToArray()
-            });
+        });
 
         Add(new PivotEntry
         {
@@ -153,7 +162,7 @@ public class Pivots : List<PivotEntry>
                     Match3Table = s.Match3Table
                 })
                 .ToArray()
-            });
+        });
 
         Add(new PivotEntry
         {
@@ -171,7 +180,7 @@ public class Pivots : List<PivotEntry>
                 .OrderBy(s => s.QueueTime)
                 .ThenBy(s => s.Pod)
                 .ToArray()
-            });
+        });
 
         foreach (var pod in pods)
         {
@@ -189,7 +198,7 @@ public class Pivots : List<PivotEntry>
                         Name = s.Name
                     })
                     .ToArray()
-                });
+            });
         }
 
         Add(new PivotEntry

@@ -1,8 +1,5 @@
-using BlazorDownloadFile;
 using FLLScheduler.Pages;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using MudBlazor.Services;
 
 // Create a WebAssemblyHostBuilder with default configuration
 var builder = WebAssemblyHostBuilder.CreateDefault(args);

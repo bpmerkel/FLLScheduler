@@ -28,6 +28,7 @@ public partial class API
     /// Runs the HTTP trigger.
     /// </summary>
     /// <param name="req">The HTTP request data.</param>
+    /// <param name="executionContext">The execution context.</param>
     /// <returns>The HTTP response data.</returns>
     [Function(nameof(GeneratePDF))]
     public static async Task<HttpResponseData> GeneratePDF([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req, FunctionContext executionContext)
@@ -46,6 +47,11 @@ public partial class API
         return response;
     }
 
+    /// <summary>
+    /// Processes the pivots and generates a PDF document.
+    /// </summary>
+    /// <param name="context">The schedule context.</param>
+    /// <returns>A memory stream containing the generated PDF document.</returns>
     private static MemoryStream ProcessPivots(ScheduleContext context)
     {
         var pivots = new Pivots(context);
@@ -99,6 +105,16 @@ public partial class API
         return ms;
     }
 
+    /// <summary>
+    /// Generates a PDF section for the specified data type.
+    /// </summary>
+    /// <typeparam name="T">The type of data to generate the section for.</typeparam>
+    /// <param name="data">The data array.</param>
+    /// <param name="heading">The section heading.</param>
+    /// <param name="eventTitle">The event title.</param>
+    /// <param name="logoLeft">The left logo image.</param>
+    /// <param name="logoRight">The right logo image.</param>
+    /// <param name="container">The document container.</param>
     private static void GeneratePdfSection<T>(Array data, string heading, string eventTitle, byte[] logoLeft, byte[] logoRight, IDocumentContainer container)
     {
         var ts = typeof(T);
@@ -282,6 +298,11 @@ public partial class API
         });
     }
 
+    /// <summary>
+    /// Creates a header block container with specific styling.
+    /// </summary>
+    /// <param name="container">The container to style.</param>
+    /// <returns>The styled container.</returns>
     private static IContainer HeaderBlock(IContainer container) => container
         .Border(1, Unit.Point)
         .BorderColor(Colors.Grey.Lighten3)
@@ -289,6 +310,12 @@ public partial class API
         .Padding(1, Unit.Point)
         .AlignMiddle();
 
+    /// <summary>
+    /// Creates a block container with specific styling.
+    /// </summary>
+    /// <param name="container">The container to style.</param>
+    /// <param name="row">The row index.</param>
+    /// <returns>The styled container.</returns>
     private static IContainer Block(IContainer container, uint row) => container
         .Border(1, Unit.Point)
         .BorderColor(Colors.Grey.Lighten3)
@@ -297,6 +324,11 @@ public partial class API
         .ShowOnce()
         .AlignMiddle();
 
+    /// <summary>
+    /// Loads an embedded resource as a byte array.
+    /// </summary>
+    /// <param name="Name">The name of the embedded resource.</param>
+    /// <returns>The byte array of the embedded resource.</returns>
     private static byte[] LoadEmbedded(string Name)
     {
         var a = Assembly.GetCallingAssembly();
@@ -306,12 +338,21 @@ public partial class API
         return buf;
     }
 
+    /// <summary>
+    /// Fixes the heading by adding spaces between PascalCase words.
+    /// </summary>
+    /// <param name="heading">The heading to fix.</param>
+    /// <returns>The fixed heading.</returns>
     static string FixHeading(string heading)
     {
         var re = PascalCaseRegex();
         return re.Replace(heading, " $1");
     }
 
+    /// <summary>
+    /// Gets the regex for matching PascalCase words.
+    /// </summary>
+    /// <returns>The regex for matching PascalCase words.</returns>
     [GeneratedRegex(@"(?<!^)(?<!-)((?<=\p{Ll})[\p{Lu}\d]|\p{Lu}(?=\p{Ll}))")]
     private static partial Regex PascalCaseRegex();
 }

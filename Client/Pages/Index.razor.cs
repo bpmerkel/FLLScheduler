@@ -1,20 +1,9 @@
-using Microsoft.AspNetCore.Components;
-using MudBlazor;
-using MudBlazor.Services;
-using System.Net.Http.Json;
-using System.Text;
-using System.Text.RegularExpressions;
-using Markdig;
-using ClosedXML.Excel;
-using BlazorDownloadFile;
-using FLLScheduler.Shared;
-
 namespace FLLScheduler.Pages;
 
 /// <summary>
 /// Represents the main page of the application.
 /// </summary>
-public partial class Index
+public partial class Index : IBrowserViewportObserver, IAsyncDisposable
 {
     /// <summary>
     /// Gets or sets the dialog service.
@@ -25,36 +14,151 @@ public partial class Index
     /// Gets or sets the browser viewport service.
     /// </summary>
     [Inject] private IBrowserViewportService BrowserViewportService { get; set; }
+
+    /// <summary>
+    /// Gets or sets the HTTP client factory.
+    /// </summary>
     [Inject] private IHttpClientFactory ClientFactory { get; set; }
 
+    /// <summary>
+    /// Gets or sets the profile.
+    /// </summary>
     private RequestModel Profile { get; set; }
+
+    /// <summary>
+    /// Gets or sets the registration time.
+    /// </summary>
     private TimeSpan? RegistrationTime { get; set; }
+
+    /// <summary>
+    /// Gets or sets the coaches meeting time.
+    /// </summary>
     private TimeSpan? CoachesMeetingTime { get; set; }
+
+    /// <summary>
+    /// Gets or sets the opening ceremony time.
+    /// </summary>
     private TimeSpan? OpeningCeremonyTime { get; set; }
+
+    /// <summary>
+    /// Gets or sets the lunch start time.
+    /// </summary>
     private TimeSpan? LunchStartTime { get; set; }
+
+    /// <summary>
+    /// Gets or sets the lunch end time.
+    /// </summary>
     private TimeSpan? LunchEndTime { get; set; }
+
+    /// <summary>
+    /// Gets or sets the judging start time.
+    /// </summary>
     private TimeSpan? JudgingStartTime { get; set; }
+
+    /// <summary>
+    /// Gets or sets the robot games start time.
+    /// </summary>
     private TimeSpan? RobotGamesStartTime { get; set; }
+
+    /// <summary>
+    /// Gets or sets the cycle time in minutes.
+    /// </summary>
     private int CycleTimeMinutes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the judging buffer minutes.
+    /// </summary>
     private int JudgingBufferMinutes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the robot game cycle time in minutes.
+    /// </summary>
     private int RobotGameCycleTimeMinutes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the robot game buffer minutes.
+    /// </summary>
     private int RobotGameBufferMinutes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the break duration in minutes.
+    /// </summary>
     private int BreakDurationMinutes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the pod names.
+    /// </summary>
     private string PodNames { get; set; }
+
+    /// <summary>
+    /// Gets or sets the total number of pods.
+    /// </summary>
     private int TotalPods { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets the breaks.
+    /// </summary>
     private string Breaks { get; set; }
+
+    /// <summary>
+    /// Gets or sets the table names.
+    /// </summary>
     private string TableNames { get; set; }
+
+    /// <summary>
+    /// Gets or sets the total number of tables.
+    /// </summary>
     private int TotalTables { get; set; } = 2;
+
+    /// <summary>
+    /// Gets or sets the teams.
+    /// </summary>
     private string Teams { get; set; }
+
+    /// <summary>
+    /// Gets the list of errors.
+    /// </summary>
     private List<string> Errors { get; init; } = [];
+
+    /// <summary>
+    /// Gets or sets the grids to show.
+    /// </summary>
     private MarkupString GridsToShow { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the schedule is being generated.
+    /// </summary>
     private bool Generating { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the Excel export is in progress.
+    /// </summary>
     private bool ExportingExcel { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the PDF export is in progress.
+    /// </summary>
     private bool ExportingPdf { get; set; } = false;
-    private readonly string[] Tables = ["Atlantic", "Pacific", "Indian", "Arctic", "Southern", "Procellarum", "Boreum", "Europa", "Enceladus", "Ganymede", "Titan", "Callisto"];
+
+    /// <summary>
+    /// Gets the predefined table names.
+    /// </summary>
+    private readonly string[] Tables = [ "Atlantic", "Pacific", "Indian", "Arctic", "Southern", "Procellarum", "Boreum", "Europa", "Enceladus", "Ganymede", "Titan", "Callisto" ];
+
+    /// <summary>
+    /// Gets the Markdown pipeline.
+    /// </summary>
     private readonly MarkdownPipeline pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+
+    /// <summary>
+    /// Gets or sets the response model.
+    /// </summary>
     private ResponseModel Response;
 
+    /// <summary>
+    /// Called after the component has rendered.
+    /// </summary>
+    /// <param name="firstRender">Indicates whether this is the first render.</param>
     protected override async void OnAfterRender(bool firstRender)
     {
         if (firstRender)
@@ -64,6 +168,10 @@ public partial class Index
         }
     }
 
+    /// <summary>
+    /// Handles the profile selection.
+    /// </summary>
+    /// <param name="value">The selected profile.</param>
     private async Task DoProfileSelected(RequestModel value)
     {
         Generating = true;
@@ -93,34 +201,47 @@ public partial class Index
         });
     }
 
+    /// <summary>
+    /// Updates the schedule based on the modifications in the UI.
+    /// </summary>
     private async Task DoUpdateSchedule()
     {
         Generating = true;
         await Task.Run(async () =>
         {
-            // generate an updated profile based on the modifications in the UI
-            var profile = new RequestModel();
-            profile.Event.RegistrationTime = TimeOnly.FromTimeSpan(RegistrationTime.Value);
-            profile.Event.CoachesMeetingTime = TimeOnly.FromTimeSpan(CoachesMeetingTime.Value);
-            profile.Event.OpeningCeremonyTime = TimeOnly.FromTimeSpan(OpeningCeremonyTime.Value);
-            profile.Event.LunchStartTime = TimeOnly.FromTimeSpan(LunchStartTime.Value);
-            profile.Event.LunchEndTime = TimeOnly.FromTimeSpan(LunchEndTime.Value);
-            profile.Judging.StartTime = TimeOnly.FromTimeSpan(JudgingStartTime.Value);
-            profile.RobotGame.StartTime = TimeOnly.FromTimeSpan(RobotGamesStartTime.Value);
-            profile.Judging.CycleTimeMinutes = CycleTimeMinutes;
-            profile.Judging.BufferMinutes = JudgingBufferMinutes;
-            profile.RobotGame.CycleTimeMinutes = RobotGameCycleTimeMinutes;
-            profile.RobotGame.BufferMinutes = RobotGameBufferMinutes;
-            profile.RobotGame.BreakDurationMinutes = BreakDurationMinutes;
-            profile.Judging.Pods = PodNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            profile.RobotGame.Tables = TableNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            profile.RobotGame.BreakTimes = Breaks.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(b => TimeOnly.TryParse(b, out TimeOnly t) ? t : TimeOnly.MaxValue)  // midnight if invalid
-                .ToArray();
-            profile.Teams = Teams.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(t => t.Split(",;\t ".ToCharArray(), 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                .Select(pair => new Team { Number = Convert.ToInt32(pair[0]), Name = pair[1] })
-                .ToArray();
+            var profile = new RequestModel
+            {
+                Event = new EventConfig
+                {
+                    RegistrationTime = TimeOnly.FromTimeSpan(RegistrationTime.Value),
+                    CoachesMeetingTime = TimeOnly.FromTimeSpan(CoachesMeetingTime.Value),
+                    OpeningCeremonyTime = TimeOnly.FromTimeSpan(OpeningCeremonyTime.Value),
+                    LunchStartTime = TimeOnly.FromTimeSpan(LunchStartTime.Value),
+                    LunchEndTime = TimeOnly.FromTimeSpan(LunchEndTime.Value)
+                },
+                Judging = new JudgingConfig
+                {
+                    StartTime = TimeOnly.FromTimeSpan(JudgingStartTime.Value),
+                    CycleTimeMinutes = CycleTimeMinutes,
+                    BufferMinutes = JudgingBufferMinutes,
+                    Pods = PodNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                },
+                RobotGame = new RobotGameConfig
+                {
+                    StartTime = TimeOnly.FromTimeSpan(RobotGamesStartTime.Value),
+                    CycleTimeMinutes = RobotGameCycleTimeMinutes,
+                    BufferMinutes = RobotGameBufferMinutes,
+                    BreakDurationMinutes = BreakDurationMinutes,
+                    Tables = TableNames.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                    BreakTimes = Breaks.Split(",;".ToCharArray(), StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Select(b => TimeOnly.TryParse(b, out TimeOnly t) ? t : TimeOnly.MaxValue)
+                        .ToArray()
+                },
+                Teams = Teams.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(t => t.Split(",;\t ".ToCharArray(), 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    .Select(pair => new Team { Number = Convert.ToInt32(pair[0]), Name = pair[1] })
+                    .ToArray()
+            };
             profile.Name = $"Customized: {profile.Teams.Length} Teams, {profile.Judging.Pods.Length} Judging Pods, {profile.RobotGame.Tables.Length} Game Tables";
 
             var existing = Profiles.FirstOrDefault(p => p.Name == profile.Name);
@@ -136,18 +257,29 @@ public partial class Index
         });
     }
 
+    /// <summary>
+    /// Identifies the number of pods.
+    /// </summary>
+    /// <param name="podcount">The number of pods.</param>
     private void DoIdentifyPods(int podcount)
     {
         TotalPods = podcount;
         PodNames = string.Join(", ", Enumerable.Range(1, podcount).Select(i => $"Pod {i}"));
     }
 
+    /// <summary>
+    /// Identifies the number of tables.
+    /// </summary>
+    /// <param name="tablecount">The number of tables.</param>
     private void DoIdentifyTables(int tablecount)
     {
         TotalTables = tablecount;
         TableNames = string.Join(", ", Tables[..tablecount]);
     }
 
+    /// <summary>
+    /// Reloads the server data.
+    /// </summary>
     private async Task ServerReload()
     {
         if (!ConfigIsValid())
@@ -165,6 +297,10 @@ public partial class Index
         }
     }
 
+    /// <summary>
+    /// Validates the configuration.
+    /// </summary>
+    /// <returns>True if the configuration is valid; otherwise, false.</returns>
     private bool ConfigIsValid()
     {
         Errors.Clear();
@@ -175,7 +311,7 @@ public partial class Index
         if (Profile.Judging == null) Errors.Add("Invalid Judging configuration");
         else if (Profile.Judging.Pods == null) Errors.Add("Invalid Judging Pods configuration");
         else if (Profile.Judging.Pods.Length == 0) Errors.Add("Invalid Judging Pods configuration");
-        else if (Profile.Judging.Pods.Length < Profile.Teams.Length / 6d) Errors.Add($"Invalid Juding Pods configuration -- each pod can judge no more than 6 teams, so you need at least {Math.Ceiling(Profile.Teams.Length / 6d):0} judging pods");
+        else if (Profile.Judging.Pods.Length < Profile.Teams.Length / 6d) Errors.Add($"Invalid Judging Pods configuration -- each pod can judge no more than 6 teams, so you need at least {Math.Ceiling(Profile.Teams.Length / 6d):0} judging pods");
 
         if (Profile.RobotGame == null) Errors.Add("Invalid Robot Game configuration");
         else if (Profile.RobotGame.Tables == null) Errors.Add("Invalid Robot Game Tables configuration");
@@ -185,6 +321,9 @@ public partial class Index
         return Errors.Count == 0;
     }
 
+    /// <summary>
+    /// Shows the results.
+    /// </summary>
     private void ShowResults()
     {
         var pivots = new Pivots(Response.Context);

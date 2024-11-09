@@ -23,6 +23,7 @@ public partial class API
     /// Runs the HTTP trigger.
     /// </summary>
     /// <param name="req">The HTTP request data.</param>
+    /// <param name="executionContext">The context in which the function is executed.</param>
     /// <returns>The HTTP response data.</returns>
     [Function(nameof(CalculateSchedule))]
     public static async Task<HttpResponseData> CalculateSchedule([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req, FunctionContext executionContext)
@@ -44,14 +45,10 @@ public partial class API
         ArgumentNullException.ThrowIfNull(request.Event, nameof(request.Event));
         ArgumentOutOfRangeException.ThrowIfZero(request.Judging.Pods.Length, nameof(request.Judging.Pods));
         ArgumentOutOfRangeException.ThrowIfZero(request.RobotGame.Tables.Length, nameof(request.RobotGame.Tables));
-        // Ensure even number of tables specfified
+        // Ensure even number of tables specified
         ArgumentOutOfRangeException.ThrowIfNotEqual(0, request.RobotGame.Tables.Length % 2, nameof(request.RobotGame.Tables));
         // Ensure number of pods can judge the team count
         ArgumentOutOfRangeException.ThrowIfNotEqual(true, request.Judging.Pods.Length >= request.Teams.Length / 6d, nameof(request.Teams));
-
-        //ArgumentOutOfRangeException.ThrowIfZero(config.Judging.CycleTimeMinutes, nameof(config.Judging.CycleTimeMinutes));
-        //ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.CycleTimeMinutes, nameof(config.RobotGame.CycleTimeMinutes));
-        //ArgumentOutOfRangeException.ThrowIfZero(config.RobotGame.BreakTimes.Length, nameof(config.RobotGame.BreakTimes));
 
         var responseModel = ProcessRequest(request);
 
@@ -61,6 +58,11 @@ public partial class API
         return response;
     }
 
+    /// <summary>
+    /// Processes the request to generate a schedule.
+    /// </summary>
+    /// <param name="request">The request model containing scheduling details.</param>
+    /// <returns>The response model containing the generated schedule.</returns>
     private static ResponseModel ProcessRequest(RequestModel request)
     {
         // always seed with same value for deterministic results
@@ -122,7 +124,6 @@ public partial class API
                 .OrderBy(team => team.Match
                     .Select((m, i) => new { m, i })
                     .First(e => !e.m.Assigned).i) // prefer candidate teams with lowest match due
-                //.ThenBy(team => team.JudgingStart > slot ? 0 : 1)    // prefer candidate teams with later judging times
                 .ToArray();
 
             // fill all tables for this slot 
@@ -203,19 +204,59 @@ public partial class API
     }
 }
 
+/// <summary>
+/// Represents a working team with its details and matches.
+/// </summary>
 class WorkingTeam
 {
+    /// <summary>
+    /// Gets the team number.
+    /// </summary>
     public int Number { get; init; }
+
+    /// <summary>
+    /// Gets the team name.
+    /// </summary>
     public string Name { get; init; }
+
+    /// <summary>
+    /// Gets or sets the judging start time.
+    /// </summary>
     public TimeOnly JudgingStart { get; set; }
+
+    /// <summary>
+    /// Gets or sets the judging pod.
+    /// </summary>
     public string JudgingPod { get; set; }
+
+    /// <summary>
+    /// Gets the matches assigned to the team.
+    /// </summary>
     public WorkingMatch[] Match { get; init; } = [new WorkingMatch(), new WorkingMatch(), new WorkingMatch(), new WorkingMatch()];
 }
 
+/// <summary>
+/// Represents a working match with its details.
+/// </summary>
 public class WorkingMatch
 {
+    /// <summary>
+    /// Gets or sets the start time of the match.
+    /// </summary>
     public TimeOnly Start { get; set; }
+
+    /// <summary>
+    /// Gets or sets the table assigned to the match.
+    /// </summary>
     public string Table { get; set; }
+
+    /// <summary>
+    /// Gets or sets the table index.
+    /// </summary>
     public int TableIndex { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the match is assigned.
+    /// </summary>
     public bool Assigned { get; set; }
 }
