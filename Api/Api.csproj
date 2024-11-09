@@ -16,7 +16,7 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.2.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.18.1" OutputItemType="Analyzer" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.23.0" />
-    <PackageReference Include="QuestPDF" Version="2024.10.2" />
+    <PackageReference Include="QuestPDF" Version="2024.10.3" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
