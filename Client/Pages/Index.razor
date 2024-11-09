@@ -15,100 +15,114 @@
         <div class="TopSpacer"></div>
 
         <MudGrid Spacing="6">
-            <MudItem xs="5">
-                <MudGrid Justify="Justify.FlexStart" Spacing="0">
-                    <MudItem xs="12">
-                        <MudAutocomplete Value="Profile" ValueChanged="DoProfileSelected" T="RequestModel" Strict="false"
-                            SearchFunc="IdentifyProfiles" ToStringFunc="@(e => e==null ? null : e.Name)"
-                            Variant="Variant.Outlined"
-                            Label="Start with a pre-set tournament profile" InputMode="InputMode.text" 
-                            Dense="true"
-                            Placeholder="Select a tournament profile"
-                            HelperText="Select a tournament profile"
-                            HelperTextOnFocus="false"
-                            Clearable="false" />
-                    </MudItem>
+            <MudItem xs="12" lg="5">
+                <MudAutocomplete Value="Profile" ValueChanged="DoProfileSelected" T="RequestModel" Strict="false"
+                    SearchFunc="IdentifyProfiles" ToStringFunc="@(e => e==null ? null : e.Name)"
+                    Variant="Variant.Outlined"
+                    Label="Start with a pre-set tournament profile" InputMode="InputMode.text" 
+                    Dense="true"
+                    Placeholder="Select a tournament profile"
+                    HelperText="Select a tournament profile"
+                    HelperTextOnFocus="false"
+                    Clearable="false" />
 
-                    <MudItem xs="12">
-                        <MudText Typo="Typo.h6">Event Configuration</MudText>
-                    </MudItem>
+                <MudExpansionPanels MultiExpansion="true" Gutters="false" Dense="true" Outlined="true">
+                    <MudExpansionPanel Expanded="true">
+                        <TitleContent>
+                            <MudText Typo="Typo.h6">Event Configuration</MudText>
+                        </TitleContent>
+                        <ChildContent>
+                            <MudGrid Justify="Justify.FlexStart" Spacing="0">
+                                <MudItem xs="4">
+                                    <MudTimePicker Label="Registration" AmPm="true" @bind-Time="RegistrationTime" Variant="Variant.Outlined" HelperText="Choose the time when registrations begins" HelperTextOnFocus="false" />
+                                </MudItem>
+                                <MudItem xs="4">
+                                    <MudTimePicker Label="Coaches Meeting" AmPm="true" @bind-Time="CoachesMeetingTime" Variant="Variant.Outlined" HelperText="Choose the time when the coaching meeting starts" HelperTextOnFocus="false" />
+                                </MudItem>
+                                <MudItem xs="4">
+                                    <MudTimePicker Label="Opening Ceremony" AmPm="true" @bind-Time="OpeningCeremonyTime" Variant="Variant.Outlined" HelperText="Choose the time when opening ceremony begin" HelperTextOnFocus="false" />
+                                </MudItem>
 
-                    <MudItem xs="4">
-                        <MudTimePicker Label="Registration" AmPm="true" @bind-Time="RegistrationTime" Variant="Variant.Outlined" HelperText="Choose the time when registrations begins" HelperTextOnFocus="false" />
-                    </MudItem>
-                    <MudItem xs="4">
-                        <MudTimePicker Label="Coaches Meeting" AmPm="true" @bind-Time="CoachesMeetingTime" Variant="Variant.Outlined" HelperText="Choose the time when the coaching meeting starts" HelperTextOnFocus="false" />
-                    </MudItem>
-                    <MudItem xs="4">
-                        <MudTimePicker Label="Opening Ceremony" AmPm="true" @bind-Time="OpeningCeremonyTime" Variant="Variant.Outlined" HelperText="Choose the time when opening ceremony begin" HelperTextOnFocus="false" />
-                    </MudItem>
+                                <MudItem xs="6">
+                                    <MudTimePicker Label="Lunch Start" AmPm="true" @bind-Time="LunchStartTime" Variant="Variant.Outlined" HelperText="Choose the time when lunch starts" HelperTextOnFocus="false" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudTimePicker Label="Lunch End" AmPm="true" @bind-Time="LunchEndTime" Variant="Variant.Outlined" HelperText="Choose the time when lunch ends" HelperTextOnFocus="false" />
+                                </MudItem>
+                            </MudGrid>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                    <MudExpansionPanel Expanded="true">
+                        <TitleContent>
+                            <MudText Typo="Typo.h6">Judging Configuration</MudText>
+                        </TitleContent>
+                        <ChildContent>
+                        <MudGrid Justify="Justify.FlexStart" Spacing="0">
+                            <MudItem xs="2">
+                                <MudNumericField T="int" Value="TotalPods" ValueChanged="e => DoIdentifyPods(e)" Label="Pods" Variant="Variant.Outlined" Min="1" Max="10" Class="align-right" />
+                            </MudItem>
+                            <MudItem xs="10">
+                                <MudTextField @bind-Value="PodNames" T="string" Disabled="true" Label="Judging Pod Names" HelperText="Juding Pod names, delimited by comma" Variant="Variant.Outlined" />
+                            </MudItem>
 
-                    <MudItem xs="6">
-                        <MudTimePicker Label="Lunch Start" AmPm="true" @bind-Time="LunchStartTime" Variant="Variant.Outlined" HelperText="Choose the time when lunch starts" HelperTextOnFocus="false" />
-                    </MudItem>
-                    <MudItem xs="6">
-                        <MudTimePicker Label="Lunch End" AmPm="true" @bind-Time="LunchEndTime" Variant="Variant.Outlined" HelperText="Choose the time when lunch ends" HelperTextOnFocus="false" />
-                    </MudItem>
+                            <MudItem xs="4">
+                                <MudTimePicker @bind-Time="JudgingStartTime" Label="Judging Start" AmPm="true" Variant="Variant.Outlined" HelperText="Choose the time when judging sessions begin" HelperTextOnFocus="false" />
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudNumericField T="int" @bind-Value="CycleTimeMinutes" Label="Judging Duration" HelperText="Judging session duration in minutes" Variant="Variant.Outlined" Step="1" Class="align-right" />
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudNumericField T="int" @bind-Value="JudgingBufferMinutes" Label="Judging Buffer" HelperText="Minimum team time in minutes required before and after a judging session" Variant="Variant.Outlined" Step="1" Class="align-right" />
+                            </MudItem>
+                        </MudGrid>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                    <MudExpansionPanel Expanded="true">
+                        <TitleContent>
+                            <MudText Typo="Typo.h6">Robot Game Configuration</MudText>
+                        </TitleContent>
+                        <ChildContent>
+                        <MudGrid Justify="Justify.FlexStart" Spacing="0">
+                            <MudItem xs="2">
+                                <MudNumericField T="int" Value="TotalTables" ValueChanged="e => DoIdentifyTables(e)" Label="Tables" Variant="Variant.Outlined" Min="2" Max="12" Step="2" Class="align-right" />
+                            </MudItem>
+                            <MudItem xs="10">
+                                <MudTextField @bind-Value="TableNames" T="string" Label="Robot Game Table Names" HelperText="Table names, delimited by comma" Variant="Variant.Outlined" />
+                            </MudItem>
 
-                    <MudItem xs="12">
-                        <MudText Typo="Typo.h6">Judging Configuration</MudText>
-                    </MudItem>
+                            <MudItem xs="4">
+                                <MudTimePicker Label="Robot Games Start" AmPm="true" @bind-Time="RobotGamesStartTime" Variant="Variant.Outlined" HelperText="Choose the time when robot games begin" HelperTextOnFocus="false" />
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudNumericField T="int" @bind-Value="RobotGameCycleTimeMinutes" Label="Robot Game Cycle Duration" HelperText="Time in minutes for each inspection, match, scoring, and reset" Variant="Variant.Outlined" Step="1" Class="align-right" />
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudNumericField T="int" @bind-Value="RobotGameBufferMinutes" Label="Robot Game Buffer" HelperText="Minimum team time in minutes required before and after a robot game match" Variant="Variant.Outlined" Step="1" Class="align-right" />
+                            </MudItem>
 
-                    <MudItem xs="2">
-                        <MudNumericField T="int" Value="TotalPods" ValueChanged="e => DoIdentifyPods(e)" Label="Pods" Variant="Variant.Outlined" Min="1" Max="10" Class="align-right" />
-                    </MudItem>
-                    <MudItem xs="10">
-                        <MudTextField @bind-Value="PodNames" T="string" Disabled="true" Label="Judging Pod Names" HelperText="Juding Pod names, delimited by comma" Variant="Variant.Outlined" />
-                    </MudItem>
-
-                    <MudItem xs="4">
-                        <MudTimePicker @bind-Time="JudgingStartTime" Label="Judging Start" AmPm="true" Variant="Variant.Outlined" HelperText="Choose the time when judging sessions begin" HelperTextOnFocus="false" />
-                    </MudItem>
-                    <MudItem xs="4">
-                        <MudNumericField T="int" @bind-Value="CycleTimeMinutes" Label="Judging Duration" HelperText="Judging session duration in minutes" Variant="Variant.Outlined" Step="1" Class="align-right" />
-                    </MudItem>
-                    <MudItem xs="4">
-                        <MudNumericField T="int" @bind-Value="JudgingBufferMinutes" Label="Judging Buffer" HelperText="Minimum team time in minutes required before and after a judging session" Variant="Variant.Outlined" Step="1" Class="align-right" />
-                    </MudItem>
-
-                    <MudItem xs="12">
-                        <MudText Typo="Typo.h6">Robot Game Configuration</MudText>
-                    </MudItem>
-
-                    <MudItem xs="2">
-                        <MudNumericField T="int" Value="TotalTables" ValueChanged="e => DoIdentifyTables(e)" Label="Tables" Variant="Variant.Outlined" Min="2" Max="12" Step="2" Class="align-right" />
-                    </MudItem>
-                    <MudItem xs="10">
-                        <MudTextField @bind-Value="TableNames" T="string" Label="Robot Game Table Names" HelperText="Table names, delimited by comma" Variant="Variant.Outlined" />
-                    </MudItem>
-
-                    <MudItem xs="4">
-                        <MudTimePicker Label="Robot Games Start" AmPm="true" @bind-Time="RobotGamesStartTime" Variant="Variant.Outlined" HelperText="Choose the time when robot games begin" HelperTextOnFocus="false" />
-                    </MudItem>
-                    <MudItem xs="4">
-                        <MudNumericField T="int" @bind-Value="RobotGameCycleTimeMinutes" Label="Robot Game Cycle Duration" HelperText="Time in minutes for each inspection, match, scoring, and reset" Variant="Variant.Outlined" Step="1" Class="align-right" />
-                    </MudItem>
-                    <MudItem xs="4">
-                        <MudNumericField T="int" @bind-Value="RobotGameBufferMinutes" Label="Robot Game Buffer" HelperText="Minimum team time in minutes required before and after a robot game match" Variant="Variant.Outlined" Step="1" Class="align-right" />
-                    </MudItem>
-
-                    <MudItem xs="6">
-                        <MudTextField @bind-Value="Breaks" T="string" Label="Break times" HelperText="Times for breaks for robot games, comma delimited" Variant="Variant.Outlined" />
-                    </MudItem>
-                    <MudItem xs="6">
-                        <MudNumericField T="int" @bind-Value="BreakDurationMinutes" Label="Break duration" HelperText="Break duration in minutes" Variant="Variant.Outlined" Step="1" Class="align-right" />
-                    </MudItem>
-
-                    <MudItem xs="12">
-                        <MudText Typo="Typo.h6">Teams</MudText>
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudTextField @bind-Value="Teams" T="string" Label="Team Numbers and Names" HelperText="Team number and names, delimited by spaces, tabs, or commas, one team per line" Variant="Variant.Outlined" Lines="12" AutoGrow="true" />
-                    </MudItem>
-                </MudGrid>
+                            <MudItem xs="6">
+                                <MudTextField @bind-Value="Breaks" T="string" Label="Break times" HelperText="Times for breaks for robot games, comma delimited" Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudNumericField T="int" @bind-Value="BreakDurationMinutes" Label="Break duration" HelperText="Break duration in minutes" Variant="Variant.Outlined" Step="1" Class="align-right" />
+                            </MudItem>
+                        </MudGrid>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                    <MudExpansionPanel Expanded="true">
+                        <TitleContent>
+                            <MudText Typo="Typo.h6">Teams</MudText>
+                        </TitleContent>
+                        <ChildContent>
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="Teams" T="string" Label="Team Numbers and Names" HelperText="Team number and names, delimited by spaces, tabs, or commas, one team per line" Variant="Variant.Outlined" Lines="12" AutoGrow="true" />
+                            </MudItem>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
             </MudItem>
 
-            <MudItem xs="7">
+            <MudItem xs="12" lg="7">
                 <MudStack Row="true">
                     <MudButton Disabled="@Generating" OnClick="DoUpdateSchedule" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Refresh" Color="Color.Primary">
                         @if (Generating)
