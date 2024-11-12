@@ -5,8 +5,9 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>FLLScheduler</RootNamespace>
-    <AssemblyVersion>1.0.*</AssemblyVersion>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
     <Deterministic>false</Deterministic>
+    <AssemblyVersion>1.0.*</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
