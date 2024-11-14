@@ -40,9 +40,7 @@ public partial class API
 
         var context = await req.ReadFromJsonAsync<ScheduleContext>();
         var response = req.CreateResponse(HttpStatusCode.OK);
-        using var ms = ProcessPivots(context);
-        ms.Position = 0;
-        await ms.CopyToAsync(response.Body);
+        ProcessPivots(context, response.Body);
         logger.LogMetric("TransactionTimeMS", sw.Elapsed.TotalMilliseconds);
         return response;
     }
@@ -52,7 +50,7 @@ public partial class API
     /// </summary>
     /// <param name="context">The schedule context.</param>
     /// <returns>A memory stream containing the generated PDF document.</returns>
-    private static MemoryStream ProcessPivots(ScheduleContext context)
+    private static void ProcessPivots(ScheduleContext context, Stream outstream)
     {
         var pivots = new Pivots(context);
         // validate the incoming request
@@ -99,10 +97,7 @@ public partial class API
             }
         });
 
-        var ms = new MemoryStream();
-        pdfDoc.GeneratePdf(ms);
-        ms.Flush();
-        return ms;
+        pdfDoc.GeneratePdf(outstream);
     }
 
     /// <summary>
