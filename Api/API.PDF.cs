@@ -328,9 +328,9 @@ public partial class API
     {
         var a = Assembly.GetCallingAssembly();
         using var stream = a.GetManifestResourceStream(a.GetName().Name + "." + Name);
-        var buf = new byte[stream.Length];
-        stream.Read(buf, 0, buf.Length);
-        return buf;
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return ms.ToArray();
     }
 
     /// <summary>
