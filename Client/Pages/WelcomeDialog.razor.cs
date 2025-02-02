@@ -8,7 +8,7 @@ public partial class WelcomeDialog
     /// <summary>
     /// Gets or sets the MudDialog instance.
     /// </summary>
-    [CascadingParameter] private MudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; }
 
     /// <summary>
     /// Closes the dialog.
