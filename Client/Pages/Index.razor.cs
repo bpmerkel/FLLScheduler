@@ -138,7 +138,7 @@ public partial class Index
     /// <summary>
     /// Gets the predefined table names.
     /// </summary>
-    private readonly string[] Tables = [ "Atlantic", "Pacific", "Indian", "Arctic", "Southern", "Procellarum", "Boreum", "Europa", "Enceladus", "Ganymede", "Titan", "Callisto" ];
+    private static readonly string[] Tables = [ "Atlantic", "Pacific", "Indian", "Arctic", "Southern", "Procellarum", "Boreum", "Europa", "Enceladus", "Ganymede", "Titan", "Callisto" ];
 
     /// <summary>
     /// Gets the Markdown pipeline.
@@ -573,9 +573,8 @@ public partial class Index
         var allpods = Enumerable.Range(1, podcount)
             .Select(i => $"Pod {i}")
             .ToArray();
-        var oceans = new[] { "Atlantic", "Pacific", "Indian", "Arctic", "Southern", "Procellarum", "Boreum", "Europa", "Enceladus", "Ganymede", "Titan", "Callisto" };
         var alltables = Enumerable.Range(0, tablecount)
-            .Select(i => oceans[i])
+            .Select(i => Tables[i])
             .ToArray();
 
         return new RequestModel
@@ -593,17 +592,20 @@ public partial class Index
             {
                 Pods = allpods,
                 StartTime = TimeOnly.Parse("9:30 am"),
-                CycleTimeMinutes = 30,
+                CycleTimeMinutes = 45,
                 BufferMinutes = 15
             },
             RobotGame = new RobotGameConfig
             {
                 Tables = alltables,
-                StartTime = TimeOnly.Parse("9:20 am"),
-                CycleTimeMinutes = allteams.Length <= 12 ? 8
-                                : allteams.Length <= 24 ? 10
-                                : allteams.Length <= 48 ? 15
-                                : 20,
+                StartTime = TimeOnly.Parse("9:30 am"),
+                CycleTimeMinutes = allteams.Length switch
+                {
+                    <= 12 => 8,
+                    <= 24 => 10,
+                    <= 48 => 15,
+                    _ => 20
+                },
                 BufferMinutes = 15,
                 BreakTimes = [TimeOnly.Parse("10:00 am"), TimeOnly.Parse("11:00 am"), TimeOnly.Parse("2:00 pm")],
                 BreakDurationMinutes = 10
