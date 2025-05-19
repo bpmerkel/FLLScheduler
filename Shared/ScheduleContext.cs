@@ -1,6 +1,4 @@
-﻿using System.Text.Json.Serialization;
-
-namespace FLLScheduler.Shared;
+﻿namespace FLLScheduler.Shared;
 
 /// <summary>
 /// Represents the context for a schedule, including name, pods, tables, and team schedules.

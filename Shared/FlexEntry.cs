@@ -1,6 +1,4 @@
-﻿using System.Dynamic;
-
-namespace FLLScheduler.Shared;
+﻿namespace FLLScheduler.Shared;
 
 /// <summary>
 /// Represents a flexible entry with a time, columns, and row data.

@@ -1,6 +1,3 @@
-using FLLScheduler.Pages;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-
 // Create a WebAssemblyHostBuilder with default configuration
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 // Add the root component "App" to the builder

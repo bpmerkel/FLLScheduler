@@ -1,14 +1,3 @@
-using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
-using FLLScheduler.Shared;
-using System.Collections.Generic;
-
 namespace ApiIsolated;
 
 /// <summary>

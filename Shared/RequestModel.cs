@@ -1,6 +1,4 @@
-﻿using System.Text.Json.Serialization;
-
-namespace FLLScheduler.Shared;
+﻿namespace FLLScheduler.Shared;
 
 /// <summary>
 /// Represents a request model containing event, judging, robot game configurations, and teams.
