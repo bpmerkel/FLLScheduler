@@ -1,19 +1,3 @@
-using System;
-using System.Diagnostics;
-using System.Net;
-using System.Threading.Tasks;
-using System.Text.RegularExpressions;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
-using QuestPDF.Infrastructure;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using FLLScheduler.Shared;
-
 namespace ApiIsolated;
 
 /// <summary>

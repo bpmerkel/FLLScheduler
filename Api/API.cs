@@ -196,7 +196,7 @@ public partial class API
 /// <summary>
 /// Represents a working team with its details and matches.
 /// </summary>
-class WorkingTeam
+public class WorkingTeam
 {
     /// <summary>
     /// Gets the team number.
