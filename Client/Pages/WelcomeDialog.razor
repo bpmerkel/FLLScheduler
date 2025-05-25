@@ -1,1 +1,40 @@
-﻿<Component />
+﻿<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h4" Color="Color.Warning">FLL Tournament Scheduler</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body1" GutterBottom="true">
+            My regional Program Delivery Partner expressed challenges to generate FLL event schedules with agility to control break times, cycle times, etc.
+            This app is a solution to enable generation of a useable event schedule.
+        </MudText>
+        <MudText Typo="Typo.body1" GutterBottom="true">
+            To use the app, follow these steps:
+            <ol class="indented">
+                <li>Launch the application in a modern browser, such as Chrome or Edge (the browser needs to support WebAssembly--a capability to run web apps)</li>
+                <li>Start at the top and select a tournament profile that best matches your tournament</li>
+                <li>
+                    Edit the Event parameters to fine tune to your specific requirements--tweak the buffer times, break times,
+                    and cycle times to adequately model the schedule you run for your event,
+                    and look for "gaps" generated in the schedule when a team cannot meet a specific time slot due to the parameters
+                </li>
+                <li>Click GENERATE SCHEDULES to compile your information and generate the schedules</li>
+                <li>Click EXPORT EXCEL to download the schedules in Excel format</li>
+                <li>Click EXPORT PDF to download the schedules in PDF format</li>
+                <li>(Coming soon: logo file uploads, QR-code upload, multi-day support, afternoon opening ceremonies, API documentation)</li>
+            </ol>
+        </MudText>
+        <MudText Typo="Typo.body1" GutterBottom="true">
+            This application was coded one weekend in October 2024 by Brady P. Merkel.
+            Please send Brady a note if you have feedback at brady@botnefl.org.
+            Brady is currently Head Referee of the Northeast Florida <i>FIRST</i> LEGO League Region; where he
+            also served in other <i>FIRST</i> LEGO League capacities since 2013, including Coach, Tournament Director,
+            Event Coordinator, Robot Design Judge, and Judge Advisor.
+        </MudText>
+        <MudText Typo="Typo.body1" GutterBottom="true">
+            Version @GetVersion()
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Warning" OnClick="Submit" Variant="Variant.Filled">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
